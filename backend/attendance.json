@@ -1,0 +1,6 @@
+{
+  "students": [
+    { "id": "stu1", "name": "Ali", "rollNo": 1, "class": "Class 1" },
+    { "id": "stu2", "name": "Sara", "rollNo": 2, "class": "Class 1" }
+  ]
+}

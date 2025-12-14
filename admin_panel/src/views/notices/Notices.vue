@@ -1,0 +1,522 @@
+<template>
+  <div class="notices-page">
+    <div class="notices-card">
+      <!-- Top bar -->
+      <div class="card-header">
+        <div>
+          <h2>School Notices</h2>
+          <p>Announcements for students and classes</p>
+        </div>
+
+        <div class="header-right">
+          <select v-model="filterClass" class="class-filter">
+            <option value="">All classes</option>
+            <option
+              v-for="cls in classOptions"
+              :key="cls"
+              :value="cls"
+            >
+              {{ cls }}
+            </option>
+          </select>
+
+          <button class="btn primary" @click="toggleForm">
+            {{ showForm ? 'Close' : '+ Add' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Add / Edit notice -->
+      <div v-if="showForm" class="add-area">
+        <div class="field-row">
+          <div class="field">
+            <label>Title</label>
+            <input
+              v-model="form.title"
+              type="text"
+              placeholder="Notice title"
+            />
+          </div>
+          <div class="field">
+            <label>Class (optional)</label>
+            <input
+              v-model="form.classId"
+              type="text"
+              placeholder="e.g. Class 7"
+            />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Description</label>
+          <textarea
+            v-model="form.description"
+            rows="2"
+            placeholder="Write notice details"
+          ></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn primary" @click="saveNotice">
+            {{ editingId ? 'Update' : 'Publish' }}
+          </button>
+          <button class="btn ghost" @click="resetForm">Clear</button>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div class="list-header">
+        <span class="list-title">Recent notices</span>
+        <span class="list-meta">{{ filteredNotices.length }} total</span>
+      </div>
+
+      <ul v-if="filteredNotices.length" class="notice-list">
+        <li
+          v-for="notice in filteredNotices"
+          :key="notice.id"
+          class="notice-row"
+        >
+          <div class="row-main">
+            <div class="row-title">
+              <span class="title-text">{{ notice.title }}</span>
+              <span class="class-badge">
+                {{ notice.classId || 'All classes' }}
+              </span>
+            </div>
+            <p class="row-desc">{{ notice.description }}</p>
+          </div>
+
+          <div class="row-meta">
+            <span class="date-text">{{ formatDate(notice.date) }}</span>
+
+            <div
+              v-if="isTeacherOrAdmin"
+              class="row-actions"
+            >
+              <button
+                class="icon-btn"
+                title="Edit"
+                @click="startEdit(notice)"
+              >
+                ✏️
+              </button>
+              <button
+                class="icon-btn delete"
+                title="Delete"
+                @click="deleteNotice(notice)"
+              >
+                🗑
+              </button>
+            </div>
+          </div>
+        </li>
+      </ul>
+
+      <p v-else class="empty-text">No notices found.</p>
+    </div>
+  </div>
+</template>
+
+<script>
+import { db } from "../../services/firebase"
+import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  deleteDoc
+} from "firebase/firestore"   // deleteDoc for delete [web:361][web:362]
+
+export default {
+  data() {
+    return {
+      notices: [],
+      form: {
+        title: "",
+        description: "",
+        classId: ""
+      },
+      showForm: false,
+      editingId: null,
+      filterClass: "",
+      classOptions: [
+        "Class 1", "Class 2", "Class 3", "Class 4", "Class 5",
+        "Class 6", "Class 7", "Class 8", "Class 9", "Class 10"
+      ],
+      user: JSON.parse(localStorage.getItem("user")) || {}
+    }
+  },
+  computed: {
+    isTeacherOrAdmin() {
+      return ["teacher", "admin"].includes(this.user.role)
+    },
+    filteredNotices() {
+      if (!this.filterClass) return this.notices
+      return this.notices.filter(
+        n => !n.classId || n.classId === this.filterClass
+      )
+    }
+  },
+  methods: {
+    async fetchNotices() {
+      const snap = await getDocs(collection(db, "notices"))
+      this.notices = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+    },
+    formatDate(dateStr) {
+      if (!dateStr) return "-"
+      const d = new Date(dateStr)
+      return d.toLocaleDateString()
+    },
+    toggleForm() {
+      if (!this.isTeacherOrAdmin) {
+        alert("Only teachers and admins can add notices.")
+        return
+      }
+      this.showForm = !this.showForm
+      if (!this.showForm) {
+        this.resetForm()
+      }
+    },
+    resetForm() {
+      this.form = { title: "", description: "", classId: "" }
+      this.editingId = null
+    },
+    startEdit(notice) {
+      if (!this.isTeacherOrAdmin) return
+      this.form = {
+        title: notice.title,
+        description: notice.description,
+        classId: notice.classId || ""
+      }
+      this.editingId = notice.id
+      this.showForm = true
+    },
+    async saveNotice() {
+      if (!this.isTeacherOrAdmin) {
+        alert("Not allowed.")
+        return
+      }
+
+      const { title, description, classId } = this.form
+      if (!title || !description) {
+        alert("Title and description are required.")
+        return
+      }
+
+      const nowIso = new Date().toISOString()
+      const id = this.editingId || Date.now().toString()
+      const payload = {
+        title,
+        description,
+        classId: classId || null,
+        date: nowIso
+      }
+
+      const docRef = doc(db, "notices", id)
+      await setDoc(docRef, payload)   // create or overwrite [web:247][web:351]
+
+      if (this.editingId) {
+        // update local array
+        this.notices = this.notices.map(n =>
+          n.id === id ? { id, ...payload } : n
+        )
+      } else {
+        // new at top
+        this.notices = [{ id, ...payload }, ...this.notices]
+      }
+
+      this.resetForm()
+      this.showForm = false
+    },
+    async deleteNotice(notice) {
+      if (!this.isTeacherOrAdmin) {
+        alert("Not allowed.")
+        return
+      }
+      if (!confirm("Delete this notice?")) return
+
+      const docRef = doc(db, "notices", notice.id)
+      await deleteDoc(docRef)   // remove from Firestore [web:361][web:368]
+
+      this.notices = this.notices.filter(n => n.id !== notice.id)
+    }
+  },
+  mounted() {
+    this.fetchNotices()
+  }
+}
+</script>
+
+<style scoped>
+.notices-page {
+  min-height: 100vh;
+  padding: 1.5rem;
+  background: #f3f4f6;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #111827;
+  display: flex;
+  justify-content: center;
+}
+
+.notices-card {
+  width: 100%;
+  max-width: 900px;
+  background: #ffffff;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+/* Header */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.card-header p {
+  margin: 0.2rem 0 0;
+  color: #6b7280;
+  font-size: 0.82rem;
+}
+
+.header-right {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.class-filter {
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.4rem;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-size: 0.8rem;
+}
+
+/* Buttons */
+.btn {
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.btn.primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.btn.primary:hover {
+  background: #1d4ed8;
+}
+
+.btn.ghost {
+  background: #f9fafb;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn.ghost:hover {
+  background: #e5e7eb;
+}
+
+/* Add form */
+.add-area {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.8rem;
+  margin-top: 0.4rem;
+  margin-bottom: 0.7rem;
+}
+
+.field-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.field label {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-bottom: 0.2rem;
+}
+
+.field input,
+.field textarea {
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.4rem;
+  border: 1px solid #d1d5db;
+  font-size: 0.82rem;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+/* List */
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 0.4rem;
+  margin-bottom: 0.3rem;
+}
+
+.list-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.list-meta {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.notice-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.notice-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.row-main {
+  flex: 1;
+}
+
+.row-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.title-text {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.class-badge {
+  padding: 0.08rem 0.5rem;
+  border-radius: 999px;
+  background: #e0edff;
+  color: #1d4ed8;
+  font-size: 0.7rem;
+}
+
+.row-desc {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  color: #374151;
+}
+
+.row-meta {
+  min-width: 110px;
+  text-align: right;
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+
+.date-text {
+  white-space: nowrap;
+}
+
+/* Edit/Delete small icons */
+.row-actions {
+  margin-top: 0.25rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+.icon-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.icon-btn.delete {
+  border-color: #f97373;
+}
+
+.icon-btn:hover {
+  background: #f3f4f6;
+}
+
+.empty-text {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .notices-page {
+    padding: 1rem;
+  }
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+  .header-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .field-row {
+    flex-direction: column;
+  }
+  .notice-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .row-meta {
+    text-align: left;
+  }
+}
+</style>
+

@@ -322,7 +322,397 @@ class _FeesScreenState extends State<FeesScreen> {
                                     BorderRadius.circular(30),
                                   ),
                                 ),
-                                onPressed: () {},
+                                onPressed: () {
+                                  // === PAYMENT OPTIONS BOTTOM SHEET ===
+                                  showModalBottomSheet(
+                                    context: context,
+                                    shape:
+                                    const RoundedRectangleBorder(
+                                      borderRadius:
+                                      BorderRadius.vertical(
+                                        top: Radius.circular(24),
+                                      ),
+                                    ),
+                                    builder: (_) {
+                                      return Padding(
+                                        padding:
+                                        const EdgeInsets.all(16),
+                                        child: Column(
+                                          mainAxisSize:
+                                          MainAxisSize.min,
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Choose Payment Method',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight:
+                                                FontWeight.w700,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              'Payable amount: $currency ${dueAmount.toStringAsFixed(2)}',
+                                              style: const TextStyle(
+                                                fontWeight:
+                                                FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+
+                                            // ==== UPI OPTION ====
+                                            ListTile(
+                                              leading: const Icon(
+                                                Icons.account_balance,
+                                                color: Colors.green,
+                                              ),
+                                              title:
+                                              const Text('UPI'),
+                                              subtitle: const Text(
+                                                  'Google Pay, PhonePe, UPI ID'),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                showModalBottomSheet(
+                                                  context: context,
+                                                  shape:
+                                                  const RoundedRectangleBorder(
+                                                    borderRadius:
+                                                    BorderRadius
+                                                        .vertical(
+                                                      top: Radius
+                                                          .circular(
+                                                          24),
+                                                    ),
+                                                  ),
+                                                  builder: (_) {
+                                                    return Padding(
+                                                      padding:
+                                                      const EdgeInsets
+                                                          .all(16),
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                        MainAxisSize
+                                                            .min,
+                                                        crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                        children: [
+                                                          const Text(
+                                                            'Pay via UPI',
+                                                            style:
+                                                            TextStyle(
+                                                              fontSize:
+                                                              18,
+                                                              fontWeight:
+                                                              FontWeight
+                                                                  .w700,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              height:
+                                                              12),
+                                                          Text(
+                                                            'Amount: $currency ${dueAmount.toStringAsFixed(2)}',
+                                                          ),
+                                                          const SizedBox(
+                                                              height:
+                                                              16),
+                                                          const Text(
+                                                              'UPI ID'),
+                                                          const SizedBox(
+                                                              height:
+                                                              6),
+                                                          const TextField(
+                                                            decoration:
+                                                            InputDecoration(
+                                                              hintText:
+                                                              'example@upi',
+                                                              border:
+                                                              OutlineInputBorder(),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              height:
+                                                              16),
+                                                          SizedBox(
+                                                            width: double
+                                                                .infinity,
+                                                            child:
+                                                            ElevatedButton(
+                                                              onPressed:
+                                                                  () {
+                                                                // TODO: actual UPI integration
+                                                                Navigator.pop(
+                                                                    context);
+                                                              },
+                                                              child:
+                                                              const Text(
+                                                                'Pay with UPI',
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  },
+                                                );
+                                              },
+                                            ),
+
+                                            // ==== CARD OPTION ====
+                                            ListTile(
+                                              leading: const Icon(
+                                                Icons.credit_card,
+                                                color: Colors.blue,
+                                              ),
+                                              title: const Text(
+                                                  'Debit / Credit Card'),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                showModalBottomSheet(
+                                                  context: context,
+                                                  shape:
+                                                  const RoundedRectangleBorder(
+                                                    borderRadius:
+                                                    BorderRadius
+                                                        .vertical(
+                                                      top: Radius
+                                                          .circular(
+                                                          24),
+                                                    ),
+                                                  ),
+                                                  builder: (_) {
+                                                    return Padding(
+                                                      padding:
+                                                      const EdgeInsets
+                                                          .all(16),
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                        MainAxisSize
+                                                            .min,
+                                                        crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                        children: [
+                                                          const Text(
+                                                            'Pay via Card',
+                                                            style:
+                                                            TextStyle(
+                                                              fontSize:
+                                                              18,
+                                                              fontWeight:
+                                                              FontWeight
+                                                                  .w700,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              height:
+                                                              12),
+                                                          Text(
+                                                            'Amount: $currency ${dueAmount.toStringAsFixed(2)}',
+                                                          ),
+                                                          const SizedBox(
+                                                              height:
+                                                              16),
+                                                          const Text(
+                                                              'Card Number'),
+                                                          const SizedBox(
+                                                              height:
+                                                              6),
+                                                          const TextField(
+                                                            keyboardType:
+                                                            TextInputType
+                                                                .number,
+                                                            decoration:
+                                                            InputDecoration(
+                                                              border:
+                                                              OutlineInputBorder(),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              height:
+                                                              12),
+                                                          Row(
+                                                            children: const [
+                                                              Expanded(
+                                                                child:
+                                                                Column(
+                                                                  crossAxisAlignment:
+                                                                  CrossAxisAlignment.start,
+                                                                  children: [
+                                                                    Text('Expiry'),
+                                                                    SizedBox(height: 6),
+                                                                    TextField(
+                                                                      decoration:
+                                                                      InputDecoration(
+                                                                        hintText:
+                                                                        'MM/YY',
+                                                                        border:
+                                                                        OutlineInputBorder(),
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                              SizedBox(
+                                                                  width:
+                                                                  12),
+                                                              Expanded(
+                                                                child:
+                                                                Column(
+                                                                  crossAxisAlignment:
+                                                                  CrossAxisAlignment.start,
+                                                                  children: [
+                                                                    Text('CVV'),
+                                                                    SizedBox(height: 6),
+                                                                    TextField(
+                                                                      obscureText:
+                                                                      true,
+                                                                      decoration:
+                                                                      InputDecoration(
+                                                                        border:
+                                                                        OutlineInputBorder(),
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          const SizedBox(
+                                                              height:
+                                                              16),
+                                                          SizedBox(
+                                                            width: double
+                                                                .infinity,
+                                                            child:
+                                                            ElevatedButton(
+                                                              onPressed:
+                                                                  () {
+                                                                // TODO: card gateway integration
+                                                                Navigator.pop(
+                                                                    context);
+                                                              },
+                                                              child:
+                                                              const Text(
+                                                                'Pay with Card',
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  },
+                                                );
+                                              },
+                                            ),
+
+                                            // ==== NET BANKING OPTION ====
+                                            ListTile(
+                                              leading: const Icon(
+                                                Icons
+                                                    .account_balance_wallet,
+                                                color: Colors.orange,
+                                              ),
+                                              title: const Text(
+                                                  'Net Banking'),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                showModalBottomSheet(
+                                                  context: context,
+                                                  shape:
+                                                  const RoundedRectangleBorder(
+                                                    borderRadius:
+                                                    BorderRadius
+                                                        .vertical(
+                                                      top: Radius
+                                                          .circular(
+                                                          24),
+                                                    ),
+                                                  ),
+                                                  builder: (_) {
+                                                    return Padding(
+                                                      padding:
+                                                      const EdgeInsets
+                                                          .all(16),
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                        MainAxisSize
+                                                            .min,
+                                                        crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                        children: [
+                                                          const Text(
+                                                            'Pay via Net Banking',
+                                                            style:
+                                                            TextStyle(
+                                                              fontSize:
+                                                              18,
+                                                              fontWeight:
+                                                              FontWeight
+                                                                  .w700,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              height:
+                                                              12),
+                                                          Text(
+                                                            'Amount: $currency ${dueAmount.toStringAsFixed(2)}',
+                                                          ),
+                                                          const SizedBox(
+                                                              height:
+                                                              16),
+                                                          const Text(
+                                                              'Select Bank'),
+                                                          const SizedBox(
+                                                              height:
+                                                              6),
+                                                          const TextField(
+                                                            decoration:
+                                                            InputDecoration(
+                                                              hintText:
+                                                              'Bank name',
+                                                              border:
+                                                              OutlineInputBorder(),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              height:
+                                                              16),
+                                                          SizedBox(
+                                                            width: double
+                                                                .infinity,
+                                                            child:
+                                                            ElevatedButton(
+                                                              onPressed:
+                                                                  () {
+                                                                // TODO: net banking integration
+                                                                Navigator.pop(
+                                                                    context);
+                                                              },
+                                                              child:
+                                                              const Text(
+                                                                'Proceed to Bank',
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  },
+                                                );
+                                              },
+                                            ),
+
+                                            const SizedBox(height: 8),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
                                 child: const Text(
                                   'Pay Now',
                                   style: TextStyle(

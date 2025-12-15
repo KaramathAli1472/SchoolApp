@@ -3,9 +3,12 @@
     <div class="notices-card">
       <!-- Top bar -->
       <div class="card-header">
-        <div>
-          <h2>School Notices</h2>
-          <p>Announcements for students and classes</p>
+        <div class="title-block">
+          <div class="title-icon">📢</div>
+          <div>
+            <h2>Announcements</h2>
+            <p>Announcements for students and classes</p>
+          </div>
         </div>
 
         <div class="header-right">
@@ -26,7 +29,7 @@
         </div>
       </div>
 
-      <!-- Add / Edit notice -->
+      <!-- Add / Edit announcement -->
       <div v-if="showForm" class="add-area">
         <div class="field-row">
           <div class="field">
@@ -34,7 +37,7 @@
             <input
               v-model="form.title"
               type="text"
-              placeholder="Notice title"
+              placeholder="Announcement title"
             />
           </div>
           <div class="field">
@@ -52,7 +55,7 @@
           <textarea
             v-model="form.description"
             rows="2"
-            placeholder="Write notice details"
+            placeholder="Write announcement details"
           ></textarea>
         </div>
 
@@ -66,7 +69,7 @@
 
       <!-- List -->
       <div class="list-header">
-        <span class="list-title">Recent notices</span>
+        <span class="list-title">Recent announcements</span>
         <span class="list-meta">{{ filteredNotices.length }} total</span>
       </div>
 
@@ -78,6 +81,7 @@
         >
           <div class="row-main">
             <div class="row-title">
+              <span class="row-icon">🔔</span>
               <span class="title-text">{{ notice.title }}</span>
               <span class="class-badge">
                 {{ notice.classId || 'All classes' }}
@@ -87,7 +91,7 @@
           </div>
 
           <div class="row-meta">
-            <span class="date-text">{{ formatDate(notice.date) }}</span>
+            <span class="date-pill">{{ formatDate(notice.date) }}</span>
 
             <div
               v-if="isTeacherOrAdmin"
@@ -112,7 +116,7 @@
         </li>
       </ul>
 
-      <p v-else class="empty-text">No notices found.</p>
+      <p v-else class="empty-text">No announcements found.</p>
     </div>
   </div>
 </template>
@@ -125,7 +129,7 @@ import {
   doc,
   setDoc,
   deleteDoc
-} from "firebase/firestore"   // deleteDoc for delete [web:361][web:362]
+} from "firebase/firestore"   // [web:361][web:362]
 
 export default {
   data() {
@@ -171,7 +175,7 @@ export default {
     },
     toggleForm() {
       if (!this.isTeacherOrAdmin) {
-        alert("Only teachers and admins can add notices.")
+        alert("Only teachers and admins can add announcements.")
         return
       }
       this.showForm = !this.showForm
@@ -215,15 +219,13 @@ export default {
       }
 
       const docRef = doc(db, "notices", id)
-      await setDoc(docRef, payload)   // create or overwrite [web:247][web:351]
+      await setDoc(docRef, payload)   // [web:247][web:351]
 
       if (this.editingId) {
-        // update local array
         this.notices = this.notices.map(n =>
           n.id === id ? { id, ...payload } : n
         )
       } else {
-        // new at top
         this.notices = [{ id, ...payload }, ...this.notices]
       }
 
@@ -235,10 +237,10 @@ export default {
         alert("Not allowed.")
         return
       }
-      if (!confirm("Delete this notice?")) return
+      if (!confirm("Delete this announcement?")) return
 
       const docRef = doc(db, "notices", notice.id)
-      await deleteDoc(docRef)   // remove from Firestore [web:361][web:368]
+      await deleteDoc(docRef)   // [web:361][web:368]
 
       this.notices = this.notices.filter(n => n.id !== notice.id)
     }
@@ -252,8 +254,8 @@ export default {
 <style scoped>
 .notices-page {
   min-height: 100vh;
-  padding: 1.5rem;
-  background: #f3f4f6;
+  padding: 1rem;
+  background: radial-gradient(circle at top left, #e0f2fe, #f5f5f7);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #111827;
   display: flex;
@@ -262,12 +264,13 @@ export default {
 
 .notices-card {
   width: 100%;
-  max-width: 900px;
+  max-width: 880px;
   background: #ffffff;
-  border-radius: 0.75rem;
+  border-radius: 1rem;
   border: 1px solid #e5e7eb;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  padding: 0.9rem 1.1rem;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  border-left: 4px solid #2563eb;
 }
 
 /* Header */
@@ -275,30 +278,47 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.6rem;
+}
+
+.title-block {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.title-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
 }
 
 .card-header h2 {
   margin: 0;
-  font-size: 1.3rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 650;
 }
 
 .card-header p {
-  margin: 0.2rem 0 0;
+  margin: 0.18rem 0 0;
   color: #6b7280;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
 }
 
 .header-right {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.45rem;
   align-items: center;
 }
 
 .class-filter {
-  padding: 0.3rem 0.6rem;
-  border-radius: 0.4rem;
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
   border: 1px solid #d1d5db;
   background: #ffffff;
   font-size: 0.8rem;
@@ -307,7 +327,7 @@ export default {
 /* Buttons */
 .btn {
   border-radius: 999px;
-  padding: 0.35rem 0.9rem;
+  padding: 0.33rem 0.85rem;
   font-size: 0.8rem;
   border: none;
   cursor: pointer;
@@ -317,12 +337,12 @@ export default {
 }
 
 .btn.primary {
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #ffffff;
 }
 
 .btn.primary:hover {
-  background: #1d4ed8;
+  filter: brightness(1.05);
 }
 
 .btn.ghost {
@@ -338,15 +358,15 @@ export default {
 /* Add form */
 .add-area {
   border-top: 1px solid #e5e7eb;
-  padding-top: 0.8rem;
-  margin-top: 0.4rem;
-  margin-bottom: 0.7rem;
+  padding-top: 0.7rem;
+  margin-top: 0.35rem;
+  margin-bottom: 0.6rem;
 }
 
 .field-row {
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  gap: 0.7rem;
+  margin-bottom: 0.45rem;
 }
 
 .field {
@@ -356,31 +376,34 @@ export default {
 }
 
 .field label {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: #6b7280;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.18rem;
 }
 
 .field input,
 .field textarea {
-  padding: 0.35rem 0.6rem;
-  border-radius: 0.4rem;
+  padding: 0.33rem 0.6rem;
+  border-radius: 0.5rem;
   border: 1px solid #d1d5db;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  resize: vertical;
+  background: #f9fafb;
 }
 
 .field input:focus,
 .field textarea:focus {
   outline: none;
   border-color: #2563eb;
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.16);
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.4rem;
-  margin-top: 0.4rem;
+  margin-top: 0.35rem;
 }
 
 /* List */
@@ -388,17 +411,17 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-top: 0.4rem;
-  margin-bottom: 0.3rem;
+  margin-top: 0.2rem;
+  margin-bottom: 0.25rem;
 }
 
 .list-title {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
 }
 
 .list-meta {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: #6b7280;
 }
 
@@ -412,8 +435,17 @@ export default {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.45rem 0;
-  border-top: 1px solid #e5e7eb;
+  padding: 0.55rem 0.55rem;
+  border-radius: 0.7rem;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  margin-bottom: 0.38rem;
+  transition: all 0.15s ease;
+}
+
+.notice-row:hover {
+  background: #eef3ff;
+  border-color: #c7d2fe;
 }
 
 .row-main {
@@ -424,7 +456,11 @@ export default {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
+}
+
+.row-icon {
+  font-size: 0.85rem;
 }
 
 .title-text {
@@ -433,7 +469,7 @@ export default {
 }
 
 .class-badge {
-  padding: 0.08rem 0.5rem;
+  padding: 0.06rem 0.5rem;
   border-radius: 999px;
   background: #e0edff;
   color: #1d4ed8;
@@ -441,40 +477,45 @@ export default {
 }
 
 .row-desc {
-  margin: 0.25rem 0 0;
-  font-size: 0.82rem;
+  margin: 0.22rem 0 0;
+  font-size: 0.8rem;
   color: #374151;
 }
 
 .row-meta {
-  min-width: 110px;
+  min-width: 120px;
   text-align: right;
   font-size: 0.76rem;
   color: #6b7280;
 }
 
-.date-text {
-  white-space: nowrap;
+.date-pill {
+  display: inline-block;
+  padding: 0.08rem 0.5rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 0.74rem;
 }
 
 /* Edit/Delete small icons */
 .row-actions {
-  margin-top: 0.25rem;
+  margin-top: 0.28rem;
   display: flex;
   justify-content: flex-end;
   gap: 0.25rem;
 }
 
 .icon-btn {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
   border: 1px solid #d1d5db;
   background: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   cursor: pointer;
   padding: 0;
 }
@@ -488,20 +529,20 @@ export default {
 }
 
 .empty-text {
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
+  margin-top: 0.4rem;
+  font-size: 0.84rem;
   color: #6b7280;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .notices-page {
-    padding: 1rem;
+    padding: 0.8rem;
   }
   .card-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
   .header-right {
     width: 100%;

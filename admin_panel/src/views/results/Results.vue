@@ -11,163 +11,355 @@
     <!-- Filters + actions -->
     <section class="card controls-card">
       <div class="controls-row">
-        <div class="field">
+        <div class="field small-field">
           <label>Class</label>
           <select v-model="selectedClass" @change="fetchStudents">
-            <option v-for="cls in classes" :key="cls" :value="cls">
-              {{ cls }}
+            <option value="All Classes">All Classes</option>
+            <option
+              v-for="cls in classes"
+              :key="cls.value"
+              :value="cls.value"
+            >
+              {{ cls.label }}
             </option>
           </select>
         </div>
 
-        <div class="field">
+        <div class="field small-field">
           <label>Search student</label>
           <input
             v-model="searchName"
             type="text"
-            placeholder="Type name to filter"
+            placeholder="Search name"
           />
         </div>
 
         <div class="actions">
-          <button class="btn primary" @click="addResult">
+          <button class="btn primary small-btn" @click="openAddResultForm">
             + Add result
           </button>
         </div>
       </div>
     </section>
 
-    <!-- Table -->
+    <!-- Table: per-exam summary rows -->
     <section class="card">
       <div class="card-header">
         <h2>Results list</h2>
         <span class="subtext">
-          Class: {{ selectedClass }} • Students: {{ filteredStudents.length }}
+          Class: {{ selectedClass }} • Records: {{ filteredRows.length }}
         </span>
       </div>
 
       <div class="table-wrapper">
-        <table v-if="filteredStudents.length" class="results-table">
+        <table v-if="filteredRows.length" class="results-table pretty">
           <thead>
             <tr>
-              <th>Roll No</th>
               <th>Student</th>
               <th>Exam</th>
               <th>Subjects</th>
-              <th>Percentage</th>
+              <th>Total</th>
+              <th>%</th>
               <th>Grade</th>
-              <th>Report card</th>
+              <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <template v-for="student in filteredStudents" :key="student.id">
-              <tr
-                v-for="(exam, examId, idx) in results[student.id] || {}"
-                :key="student.id + '-' + examId"
-              >
-                <!-- Roll / name only on first exam row -->
-                <td
-                  v-if="idx === 0"
-                  :rowspan="Object.keys(results[student.id] || {}).length || 1"
-                >
-                  {{ student.rollNo || "-" }}
-                </td>
-
-                <td
-                  v-if="idx === 0"
-                  :rowspan="Object.keys(results[student.id] || {}).length || 1"
-                >
-                  <div class="student-info">
-                    <div class="avatar">
-                      {{ (student.name || "?").charAt(0).toUpperCase() }}
-                    </div>
-                    <div>
-                      <div class="student-name">{{ student.name || "-" }}</div>
-                      <div class="student-meta">{{ student.classId }}</div>
-                    </div>
+            <tr v-for="row in filteredRows" :key="row.key">
+              <!-- Student cell: photo + name + ID/class -->
+              <td class="student-cell">
+                <img
+                  v-if="row.photoUrl"
+                  :src="row.photoUrl"
+                  alt="photo"
+                  class="avatar"
+                />
+                <div v-else class="avatar avatar-initial">
+                  {{ (row.name || '?').charAt(0).toUpperCase() }}
+                </div>
+                <div class="student-meta">
+                  <div class="student-name">{{ row.name || "-" }}</div>
+                  <div class="student-sub">
+                    ID: {{ row.studentId }} • {{ classLabel(row.classId) }}
                   </div>
-                </td>
+                </div>
+              </td>
 
-                <!-- If exam records exist -->
-                <template v-if="Object.keys(results[student.id] || {}).length">
-                  <td class="exam-cell">{{ examId }}</td>
-                  <td class="subjects-cell">
-                    {{ formatSubjects(exam.subjectMarks) }}
-                  </td>
-                  <td class="percent-cell">
-                    {{ exam.percentage }}%
-                  </td>
-                  <td>
-                    <span class="grade-pill">
-                      {{ exam.grade }}
-                    </span>
-                  </td>
-                  <td>
-                    <a
-                      v-if="exam.reportCardURL"
-                      :href="exam.reportCardURL"
-                      target="_blank"
-                      class="link"
-                    >
-                      View PDF
-                    </a>
-                    <span v-else class="muted">Not uploaded</span>
-                  </td>
-                </template>
+              <td>{{ row.examName }}</td>
 
-                <!-- No exam for this student -->
-                <template v-else>
-                  <td colspan="5" class="muted">
-                    No exam records for this student.
-                  </td>
-                </template>
-              </tr>
-            </template>
+              <!-- Subjects multiline -->
+              <td class="subjects-cell">
+                <div
+                  v-for="line in row.subjectLines"
+                  :key="line"
+                  class="subject-line"
+                >
+                  {{ line }}
+                </div>
+              </td>
+
+              <td>{{ row.totalObtained }}/{{ row.totalMaximum }}</td>
+
+              <td>
+                <span class="badge pct-badge">
+                  {{ row.percentage.toFixed(1) }}%
+                </span>
+              </td>
+
+              <td>
+                <span class="badge grade-badge">
+                  {{ row.grade }}
+                </span>
+              </td>
+
+              <td>
+                <span
+                  class="badge"
+                  :class="row.status === 'Pass' ? 'badge-pass' : 'badge-fail'"
+                >
+                  {{ row.status }}
+                </span>
+              </td>
+
+              <td>
+                <button
+                  class="btn small-btn"
+                  @click="editExam(row.studentFirestoreId, row.examName)"
+                >
+                  Edit
+                </button>
+                <button
+                  class="btn small-btn delete-btn"
+                  @click="deleteExam(row.studentFirestoreId, row.examName)"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
           </tbody>
         </table>
 
-        <p v-else class="empty-state">
-          No students found for this class.
-        </p>
+        <p v-else class="empty-state">No results found for this filter.</p>
       </div>
     </section>
+
+    <!-- Add / Edit Result Modal -->
+    <div v-if="showAddResultForm" class="modal-backdrop">
+      <div class="modal">
+        <h3>Add / Update Result (All Subjects)</h3>
+
+        <div class="modal-body">
+          <div class="field">
+            <label>Student (ID Number)</label>
+            <select v-model="form.studentId">
+              <option value="">Select student</option>
+              <option
+                v-for="s in students"
+                :key="s.id"
+                :value="s.id"
+              >
+                {{ s.name }} ({{ classLabel(s.classId) }})
+                - ID {{ s.idNumber || s.rollNo || s.id }}
+              </option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Exam name</label>
+            <input
+              v-model="form.examName"
+              type="text"
+              placeholder="e.g. Mid Term, Final Exam"
+            />
+          </div>
+
+          <div class="field">
+            <label>Subjects & marks</label>
+          </div>
+          <div
+            class="subject-row"
+            v-for="sub in form.subjectsMarks"
+            :key="sub.name"
+          >
+            <div class="subject-name">
+              <input
+                type="checkbox"
+                v-model="sub.enabled"
+              />
+              <span>{{ sub.name }}</span>
+            </div>
+            <input
+              v-model.number="sub.obtained"
+              type="number"
+              min="0"
+              placeholder="Obtained"
+              :disabled="!sub.enabled"
+            />
+            <input
+              v-model.number="sub.maximum"
+              type="number"
+              min="1"
+              placeholder="Maximum"
+              :disabled="!sub.enabled"
+            />
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label>Grade (optional, auto per subject)</label>
+              <small>Leave empty to auto-calculate grade from percentage.</small>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Overall status (default Pass)</label>
+            <select v-model="form.status">
+              <option value="Pass">Pass</option>
+              <option value="Fail">Fail</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn" @click="closeAddResultForm">Cancel</button>
+          <button class="btn primary" @click="saveResult">Save</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { db, storage } from "../../services/firebase"
-import { collection, doc, getDocs, getDoc, setDoc } from "firebase/firestore"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import { db } from "../../services/firebase"
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+} from "firebase/firestore" // [web:989]
 
 export default {
   data() {
     return {
-      classes: ["Class 1", "Class 2", "Class 3"],
-      selectedClass: "Class 1",
+      classes: Array.from({ length: 10 }, (_, i) => ({
+        label: `Class ${i + 1}`,
+        value: `class_${i + 1}`,
+      })),
+      subjects: [
+        "Hindi",
+        "Telugu",
+        "Urdu",
+        "English",
+        "Mathematics",
+        "Science",
+        "Chemistry",
+        "Biology",
+        "Social Studies",
+        "Computer",
+        "Islamiyat",
+        "General Knowledge",
+      ],
+      selectedClass: "All Classes",
       students: [],
       results: {},
       searchName: "",
-      user: JSON.parse(localStorage.getItem("user"))
+      showAddResultForm: false,
+      form: {
+        studentId: "",
+        examName: "",
+        subjectsMarks: [],
+        status: "Pass",
+      },
     }
   },
+
   computed: {
     filteredStudents() {
       const name = this.searchName.trim().toLowerCase()
-      return this.students.filter(s =>
-        !name || (s.name || "").toLowerCase().includes(name)
-      )
-    }
+      return this.students.filter((s) => {
+        const matchesName =
+          !name || (s.name || "").toLowerCase().includes(name)
+        const matchesClass =
+          this.selectedClass === "All Classes" ||
+          s.classId === this.selectedClass
+        return matchesName && matchesClass
+      })
+    },
+
+    // Per-exam summary rows, with multiline subjectLines
+    filteredRows() {
+      const rows = []
+      for (const student of this.filteredStudents) {
+        const studentResults = this.results[student.id] || {}
+        for (const [examName, subjects] of Object.entries(studentResults)) {
+          let totalObtained = 0
+          let totalMaximum = 0
+          const subjectLines = []
+
+          for (const [subjectName, data] of Object.entries(subjects)) {
+            const obtained = Number(data.obtained || 0)
+            const maximum = Number(data.maximum || 0) || 1
+            totalObtained += obtained
+            totalMaximum += maximum
+            const grade =
+              data.grade || this.autoGrade((obtained / maximum) * 100)
+            subjectLines.push(`${subjectName}: ${obtained}/${maximum} (${grade})`)
+          }
+
+          if (totalMaximum === 0) continue
+          const percentage = (totalObtained / totalMaximum) * 100
+          const overallGrade = this.autoGrade(percentage)
+          const overallStatus = percentage >= 40 ? "Pass" : "Fail"
+
+          rows.push({
+            key: `${student.id}-${examName}`,
+            studentId: student.idNumber || student.rollNo || student.id,
+            studentFirestoreId: student.id,
+            name: student.name,
+            classId: student.classId,
+            photoUrl: student.photoUrl || "",
+            examName,
+            subjectLines,
+            totalObtained,
+            totalMaximum,
+            percentage,
+            grade: overallGrade,
+            status: overallStatus,
+          })
+        }
+      }
+      return rows
+    },
   },
+
   methods: {
+    classLabel(classId) {
+      const cls = this.classes.find((c) => c.value === classId)
+      return cls ? cls.label : "-"
+    },
+
+    autoGrade(pct) {
+      if (pct >= 80) return "A"
+      if (pct >= 60) return "B"
+      if (pct >= 50) return "C"
+      if (pct >= 40) return "D"
+      return "F"
+    },
+
     async fetchStudents() {
       const snap = await getDocs(collection(db, "students"))
-      this.students = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(s => s.classId === this.selectedClass)
+      const allStudents = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      this.students =
+        this.selectedClass === "All Classes"
+          ? allStudents
+          : allStudents.filter((s) => s.classId === this.selectedClass)
       await this.fetchResults()
     },
+
     async fetchResults() {
-      const resultsCopy = { ...this.results }
+      const resultsCopy = {}
       for (const student of this.students) {
         const docRef = doc(db, "results", student.id)
         const docSnap = await getDoc(docRef)
@@ -175,304 +367,396 @@ export default {
       }
       this.results = resultsCopy
     },
-    formatSubjects(subjectMarks) {
-      return Object.entries(subjectMarks || {})
-        .map(([sub, mark]) => `${sub}: ${mark}`)
-        .join(", ")
+
+    openAddResultForm() {
+      this.resetForm()
+      this.showAddResultForm = true
     },
-    async addResult() {
-      const studentId = prompt("Enter student ID")
-      if (!studentId) return
 
-      const examId = prompt("Enter exam ID")
-      if (!examId) return
+    closeAddResultForm() {
+      this.showAddResultForm = false
+    },
 
-      const math = prompt("Math marks")
-      const sci = prompt("Science marks")
+    resetForm() {
+      this.form = {
+        studentId: "",
+        examName: "",
+        subjectsMarks: this.subjects.map((name) => ({
+          name,
+          enabled: false,
+          obtained: null,
+          maximum: null,
+        })),
+        status: "Pass",
+      }
+    },
 
-      const perc = ((Number(math) + Number(sci)) / 2).toFixed(2)
-      const grade =
-        perc >= 90 ? "A+" :
-        perc >= 80 ? "A" :
-        perc >= 70 ? "B+" : "B"
+    async saveResult() {
+      const { studentId, examName, subjectsMarks, status } = this.form
 
-      let reportURL = ""
-      const filePath = prompt("Enter report card URL or leave blank")
-      if (filePath) {
-        reportURL = filePath
+      const enabledSubjects = subjectsMarks.filter(
+        (s) => s.enabled && s.obtained != null && s.maximum != null
+      )
+
+      if (!studentId || !examName || !enabledSubjects.length) {
+        alert(
+          "Student, exam name and at least one subject marks are required."
+        )
+        return
       }
 
+      try {
+        const docRef = doc(db, "results", studentId)
+        const docSnap = await getDoc(docRef)
+        const current = docSnap.exists() ? docSnap.data() : {}
+
+        if (!current[examName]) current[examName] = {}
+
+        for (const sub of enabledSubjects) {
+          const obtained = Number(sub.obtained)
+          const maximum = Number(sub.maximum) || 1
+          const pct = (obtained / maximum) * 100
+          current[examName][sub.name] = {
+            obtained,
+            maximum,
+            grade: this.autoGrade(pct),
+            status: status || (pct >= 40 ? "Pass" : "Fail"),
+          }
+        }
+
+        await setDoc(docRef, current, { merge: true }) // [web:989]
+
+        alert("Results saved successfully.")
+        this.showAddResultForm = false
+        await this.fetchResults()
+      } catch (err) {
+        console.error("Save result error:", err)
+        alert("Failed to save result.")
+      }
+    },
+
+    async editExam(studentId, examName) {
       const docRef = doc(db, "results", studentId)
       const docSnap = await getDoc(docRef)
-      const data = docSnap.exists() ? docSnap.data() : {}
-      data[examId] = {
-        subjectMarks: { math: Number(math), sci: Number(sci) },
-        percentage: perc,
-        grade,
-        reportCardURL: reportURL
-      }
-      await setDoc(docRef, data)
-      this.$set
-        ? this.$set(this.results, studentId, data)
-        : (this.results = { ...this.results, [studentId]: data })
+      if (!docSnap.exists()) return
 
-      alert("Result saved")
-    }
+      const data = docSnap.data()
+      const examData = data[examName] || {}
+
+      const subjectsMarks = this.subjects.map((name) => {
+        const sub = examData[name]
+        return {
+          name,
+          enabled: !!sub,
+          obtained: sub ? sub.obtained : null,
+          maximum: sub ? sub.maximum : null,
+        }
+      })
+
+      this.form = {
+        studentId,
+        examName,
+        subjectsMarks,
+        status: "Pass",
+      }
+      this.showAddResultForm = true
+    },
+
+    async deleteExam(studentId, examName) {
+      const ok = confirm(
+        `Delete all results for this exam (${examName}) for this student?`
+      )
+      if (!ok) return
+
+      try {
+        const docRef = doc(db, "results", studentId)
+        const docSnap = await getDoc(docRef)
+        if (!docSnap.exists()) return
+
+        const data = docSnap.data()
+        delete data[examName]
+
+        await setDoc(docRef, data, { merge: false }) // overwrite [web:989]
+        alert("Exam deleted successfully.")
+        await this.fetchResults()
+      } catch (e) {
+        console.error("Delete exam error:", e)
+        alert("Failed to delete exam.")
+      }
+    },
   },
+
   mounted() {
+    this.resetForm()
     this.fetchStudents()
-  }
+  },
 }
 </script>
 
 <style scoped>
-/* Layout */
 .results-page {
-  min-height: 100vh;
-  padding: 2rem;
-  background: #f3f4f6;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #111827;
+  padding: 0.4rem 1rem; /* aur kam top padding */
+}
+
+.card:first-of-type {
+  margin-top: 0.3rem;   /* filters wali card */
+}
+
+.card:nth-of-type(2) {
+  margin-top: 0.0rem;   /* Results list wali card ko bhi upar lao */
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.1rem;
 }
 
-.page-header h1 {
-  margin: 0;
-  font-size: 1.6rem;
-  font-weight: 600;
-}
-
-.page-header p {
-  margin: 0.35rem 0 0;
-  color: #6b7280;
-  font-size: 0.9rem;
-}
-
-/* Card */
 .card {
   background: #ffffff;
   border-radius: 0.75rem;
-  border: 1px solid #e5e7eb;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
-  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem; /* thoda kam padding */
+  margin-bottom: 0.5rem;  /* pehle 1rem tha */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
-/* Controls */
 .controls-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.6rem; /* pehle 0.8rem */
   align-items: flex-end;
+}
+
+.card-header {
+  margin-bottom: 0.0rem; /* optional: list title aur table ke beech gap kam */
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  min-width: 180px;
-  flex: 1;
+  min-width: 150px;
 }
 
-.field label {
-  font-size: 0.8rem;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
+.field-row {
+  display: flex;
+  gap: 0.75rem;
 }
 
+.small-field select,
+.small-field input,
 .field select,
 .field input {
-  padding: 0.4rem 0.7rem;
-  border-radius: 0.5rem;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  font-size: 0.86rem;
-}
-
-.field select:focus,
-.field input:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.18);
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid #ccc;
 }
 
 .actions {
   margin-left: auto;
 }
 
-/* Buttons */
 .btn {
-  border-radius: 999px;
-  padding: 0.45rem 1.1rem;
-  font-size: 0.85rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.4rem;
   border: none;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  transition: all 0.15s ease;
+  font-size: 0.85rem;
 }
 
 .btn.primary {
-  background: #2563eb;
-  color: #ffffff;
+  background: #4caf50;
+  color: #fff;
 }
 
-.btn.primary:hover {
-  background: #1d4ed8;
-}
-
-/* Card header */
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 0.6rem;
-}
-
-.card-header h2 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.subtext {
+.small-btn {
   font-size: 0.8rem;
-  color: #6b7280;
+  padding: 0.3rem 0.7rem;
 }
 
-/* Table */
+.delete-btn {
+  background: #e53935;
+  color: #fff;
+}
+
+.delete-btn:hover {
+  background: #c62828;
+}
+
 .table-wrapper {
   overflow-x: auto;
 }
 
-.results-table {
+/* Modern table styling */
+.results-table.pretty {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.84rem;
+  border-collapse: separate;
+  border-spacing: 0 3px; /* pehle 6px tha, ab gap kam */
+  font-size: 0.85rem;
 }
 
-.results-table thead {
-  background: #f9fafb;
+.results-table.pretty tbody tr {
+  background: #fafafa;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); /* shadow thoda soft */
 }
 
-.results-table th {
-  text-align: left;
-  padding: 0.55rem 0.7rem;
-  font-weight: 500;
-  color: #6b7280;
-  border-bottom: 1px solid #e5e7eb;
-  white-space: nowrap;
+.results-table.pretty tbody tr:hover {
+  background: #f0f7ff;
 }
 
-.results-table tbody tr:nth-child(even) {
-  background: #f9fafb;
+.results-table.pretty tbody tr {
+  background: #fafafa;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-.results-table tbody tr:nth-child(odd) {
-  background: #ffffff;
+.results-table.pretty tbody tr:hover {
+  background: #f0f7ff;
 }
 
-.results-table td {
-  padding: 0.5rem 0.7rem;
-  border-bottom: 1px solid #e5e7eb;
-  vertical-align: top;
+.results-table.pretty td {
+  padding: 0.35rem 0.5rem;
+  border-top: 1px solid #eee;
 }
 
-/* Student info */
-.student-info {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
+.subtext {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.empty-state {
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  color: #777;
+}
+
+.status-pass {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.status-fail {
+  color: #c62828;
+  font-weight: 600;
 }
 
 .avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: #e5e7eb;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-initial {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #90caf9;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
   font-weight: 600;
-  color: #374151;
+  color: #0d47a1;
 }
 
-.student-name {
-  font-weight: 500;
+.student-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .student-meta {
-  font-size: 0.72rem;
-  color: #6b7280;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Cells */
-.exam-cell {
-  font-weight: 500;
+.student-name {
+  font-weight: 600;
+}
+
+.student-sub {
+  font-size: 0.75rem;
+  color: #777;
 }
 
 .subjects-cell {
   max-width: 260px;
 }
 
-.percent-cell {
-  font-weight: 500;
-}
-
-/* Grade pill (neutral) */
-.grade-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  border: 1px solid #e5e7eb;
-  color: #374151;
-  background: #f9fafb;
-}
-
-/* Links / text */
-.link {
-  color: #2563eb;
-  font-size: 0.82rem;
-  text-decoration: none;
-}
-
-.link:hover {
-  text-decoration: underline;
-}
-
-.muted {
+.subject-line {
   font-size: 0.78rem;
-  color: #9ca3af;
+  line-height: 1.2;
 }
 
-.empty-state {
-  margin: 0.6rem 0;
-  font-size: 0.83rem;
-  color: #6b7280;
+.subject-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .results-page {
-    padding: 1.2rem;
-  }
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.4rem;
-  }
-  .controls-row {
-    flex-direction: column;
-  }
+.subject-name {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 160px;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.pct-badge {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.grade-badge {
+  background: #ede7f6;
+  color: #5e35b1;
+  font-weight: 600;
+}
+
+.badge-pass {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.badge-fail {
+  background: #ffebee;
+  color: #c62828;
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  width: 480px;
+  max-width: 95vw;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 </style>
 

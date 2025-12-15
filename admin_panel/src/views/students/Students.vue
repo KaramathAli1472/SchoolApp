@@ -1,99 +1,113 @@
 <template>
   <div class="students-container">
-    <h2>Students</h2>
+    <h2 class="page-title">🎓 Student Management</h2>
 
     <!-- ===== Add / Edit Student Form ===== -->
-    <div class="add-student-form">
-      <input v-model="newStudent.name" placeholder="Student Name" />
+    <div class="card form-card">
+      <h3>{{ editing ? "Edit Student" : "Add New Student" }}</h3>
+      <div class="form-grid">
+        <input v-model="newStudent.name" placeholder="Student Name" />
+        <input v-model="newStudent.idNumber" type="text" placeholder="ID Number" />
+        <select v-model="newStudent.classId" class="small-select">
+          <option v-for="cls in classes" :key="cls.value" :value="cls.value">
+            {{ cls.label }}
+          </option>
+        </select>
+        <select v-model="newStudent.gender" class="small-select">
+          <option value="">Select Gender</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+        <input v-model="newStudent.branch" type="text" placeholder="School Branch" />
+        <input v-model="newStudent.dob" type="date" />
+        <input v-model="newStudent.admissionDate" type="date" />
+        <input v-model="newStudent.parentPhone" type="text" placeholder="Parent Phone" />
 
-      <input
-        v-model.number="newStudent.rollNo"
-        type="number"
-        placeholder="Roll No"
-      />
+        <!-- Photo Upload -->
+        <div class="photo-upload">
+          <input type="file" accept="image/*" @change="onPhotoSelect" />
+          <img v-if="photoPreview" :src="photoPreview" class="photo-preview" />
+        </div>
+      </div>
 
-      <select v-model="newStudent.classId">
-        <option v-for="cls in classes" :key="cls.value" :value="cls.value">
-          {{ cls.label }}
-        </option>
-      </select>
-
-      <input v-model="newStudent.dob" type="date" />
-
-      <input v-model="newStudent.admissionDate" type="date" />
-
-      <input
-        v-model="newStudent.parentPhone"
-        type="text"
-        placeholder="Parent Phone"
-      />
-
-      <button @click="editing ? updateStudent() : addStudent()">
-        {{ editing ? "Update Student" : "Add Student" }}
-      </button>
-
-      <button v-if="editing" class="cancel-btn" @click="cancelEdit">
-        Cancel
-      </button>
+      <div class="form-actions">
+        <button class="primary-btn" @click="editing ? updateStudent() : addStudent()">
+          {{ editing ? "Update" : "Add Student" }}
+        </button>
+        <button v-if="editing" class="secondary-btn" @click="cancelEdit">Cancel</button>
+      </div>
     </div>
 
-    <!-- ===== Filter ===== -->
-    <div class="filter-box">
+    <!-- ===== Filter & Search ===== -->
+<div class="card filter-card">
+  <div class="filter-search-line">
+    <div class="filter-item">
       <label>Filter by Class:</label>
-      <select v-model="selectedClass" @change="fetchStudents">
+      <select v-model="selectedClass" @change="applyFilters" class="small-select">
         <option value="">All Classes</option>
         <option v-for="cls in classes" :key="cls.value" :value="cls.value">
           {{ cls.label }}
         </option>
       </select>
     </div>
+    <div class="filter-item">
+      <label>Search by Name:</label>
+      <input type="text" v-model="searchQuery" placeholder="Enter student name..." @input="applyFilters" class="small-search-box" />
+    </div>
+  </div>
+</div>
 
     <!-- ===== Students Table ===== -->
-    <table v-if="students.length">
-      <thead>
-        <tr>
-          <th>Roll No</th>
-          <th>Name</th>
-          <th>Class</th>
-          <th>DOB</th>
-          <th>Admission Date</th>
-          <th>Parent Phone</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="s in students" :key="s.id">
-          <td>{{ s.rollNo }}</td>
-          <td>{{ s.name }}</td>
-          <td>{{ classLabel(s.classId) }}</td>
-          <td>{{ formatDate(s.dob) }}</td>
-          <td>{{ formatDate(s.admissionDate) }}</td>
-          <td>{{ s.parentPhone || "-" }}</td>
-          <td>
-            <button class="edit-btn" @click="editStudent(s)">Edit</button>
-            <button class="delete-btn" @click="deleteStudent(s)">Delete</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="card table-card">
+      <table v-if="filteredStudents.length">
+        <thead>
+          <tr>
+            <th>Photo</th>
+            <th>ID Number</th>
+            <th>Name</th>
+            <th>Class</th>
+            <th>Gender</th>
+            <th>Branch</th>
+            <th>DOB</th>
+            <th>Admission Date</th>
+            <th>Parent Phone</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="s in filteredStudents" :key="s.id">
+            <td>
+              <img v-if="s.photoUrl" :src="s.photoUrl" class="table-photo" />
+              <span v-else>-</span>
+            </td>
+            <td>{{ s.idNumber }}</td>
+            <td>{{ s.name }}</td>
+            <td>{{ classLabel(s.classId) }}</td>
+            <td>{{ s.gender || "-" }}</td>
+            <td>{{ s.branch || "-" }}</td>
+            <td>{{ formatDate(s.dob) }}</td>
+            <td>{{ formatDate(s.admissionDate) }}</td>
+            <td>{{ s.parentPhone || "-" }}</td>
+            <td>
+              <button class="edit-btn" @click="editStudent(s)">Edit</button>
+              <button class="delete-btn" @click="deleteStudent(s)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-    <p v-else>No students found.</p>
+      <p v-else class="no-data">No students found.</p>
+    </div>
   </div>
 </template>
 
 <script>
 import { db } from "../../services/firebase"
-import {
-  collection,
-  getDocs,
-  addDoc,
-  query,
-  where,
-  Timestamp,
-  deleteDoc,
-  doc,
-  updateDoc,
-} from "firebase/firestore"
+import { collection, getDocs, addDoc, query, where, Timestamp, deleteDoc, doc, updateDoc } from "firebase/firestore"
+
+const CLOUD_NAME = "drxe5e2nk"
+const UPLOAD_PRESET = "students_photos"
 
 export default {
   data() {
@@ -112,15 +126,21 @@ export default {
       ],
       students: [],
       selectedClass: "",
+      searchQuery: "",
       newStudent: {
         id: null,
         name: "",
-        rollNo: "",
+        idNumber: "",
         classId: "class_1",
+        gender: "",
+        branch: "",
         dob: "",
         admissionDate: "",
         parentPhone: "",
+        photoUrl: "",
       },
+      photoFile: null,
+      photoPreview: "",
       editing: false,
     }
   },
@@ -129,73 +149,72 @@ export default {
     this.fetchStudents()
   },
 
+  computed: {
+    filteredStudents() {
+      return this.students.filter(s => {
+        const matchesClass = this.selectedClass ? s.classId === this.selectedClass : true
+        const matchesSearch = this.searchQuery
+          ? s.name.toLowerCase().includes(this.searchQuery.toLowerCase())
+          : true
+        return matchesClass && matchesSearch
+      })
+    }
+  },
+
   methods: {
     classLabel(classId) {
-      const cls = this.classes.find((c) => c.value === classId)
+      const cls = this.classes.find(c => c.value === classId)
       return cls ? cls.label : "-"
     },
 
     formatDate(date) {
       if (!date) return "-"
-      let d
-      // Agar date Firebase Timestamp hai
-      if (date.toDate) d = date.toDate()
-      else d = new Date(date)
-      return (
-        ("0" + (d.getMonth() + 1)).slice(-2) +
-        "/" +
-        ("0" + d.getDate()).slice(-2) +
-        "/" +
-        d.getFullYear()
-      )
+      let d = date.toDate ? date.toDate() : new Date(date)
+      return `${("0"+(d.getMonth()+1)).slice(-2)}/${("0"+d.getDate()).slice(-2)}/${d.getFullYear()}`
     },
 
     async fetchStudents() {
       try {
         const ref = collection(db, "students")
-        const q = this.selectedClass
-          ? query(ref, where("classId", "==", this.selectedClass))
-          : ref
-
-        const snap = await getDocs(q)
-        this.students = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const snap = await getDocs(ref)
+        this.students = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       } catch (err) {
         console.error("Fetch students error:", err)
       }
     },
 
+    applyFilters() {
+      // filteredStudents computed property will handle filtering automatically
+    },
+
+    onPhotoSelect(e) {
+      this.photoFile = e.target.files[0]
+      this.photoPreview = URL.createObjectURL(this.photoFile)
+    },
+
+    async uploadPhoto() {
+      if (!this.photoFile) return this.newStudent.photoUrl || ""
+      const fd = new FormData()
+      fd.append("file", this.photoFile)
+      fd.append("upload_preset", UPLOAD_PRESET)
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method:"POST", body: fd })
+      const data = await res.json()
+      return data.secure_url
+    },
+
     async addStudent() {
-      const { name, rollNo, classId } = this.newStudent
-      if (!name || !rollNo || !classId) {
-        alert("Name, Roll No and Class are required")
+      if (!this.newStudent.name || !this.newStudent.idNumber || !this.newStudent.classId) {
+        alert("Name, ID Number, and Class are required")
         return
       }
-
-      const dupQuery = query(
-        collection(db, "students"),
-        where("classId", "==", classId),
-        where("rollNo", "==", rollNo)
-      )
-      const dupSnap = await getDocs(dupQuery)
-      if (!dupSnap.empty) {
-        alert("Roll No already exists in this class")
-        return
-      }
-
+      const photoUrl = await this.uploadPhoto()
       try {
         await addDoc(collection(db, "students"), {
-          name,
-          rollNo,
-          classId,
-          dob: this.newStudent.dob || null,
-          admissionDate: this.newStudent.admissionDate
-            ? Timestamp.fromDate(new Date(this.newStudent.admissionDate))
-            : Timestamp.now(),
-          parentPhone: this.newStudent.parentPhone || null,
-          parentId: null,
+          ...this.newStudent,
+          photoUrl,
+          admissionDate: this.newStudent.admissionDate ? Timestamp.fromDate(new Date(this.newStudent.admissionDate)) : Timestamp.now(),
           createdAt: Timestamp.now(),
         })
-
         alert("Student added successfully")
         this.resetForm()
         this.fetchStudents()
@@ -207,43 +226,44 @@ export default {
 
     editStudent(student) {
       this.newStudent = { ...student }
-      if (student.dob) {
-        this.newStudent.dob = this.formatDateForInput(student.dob)
-      }
-      if (student.admissionDate) {
-        this.newStudent.admissionDate = this.formatDateForInput(
-          student.admissionDate
-        )
-      }
+      this.photoPreview = student.photoUrl || ""
+      if (student.dob) this.newStudent.dob = this.formatDateForInput(student.dob)
+      if (student.admissionDate) this.newStudent.admissionDate = this.formatDateForInput(student.admissionDate)
       this.editing = true
     },
 
     formatDateForInput(date) {
-      let d
-      if (date.toDate) d = date.toDate()
-      else d = new Date(date)
-      return d.toISOString().substr(0, 10) // YYYY-MM-DD for input type date
+      let d = date.toDate ? date.toDate() : new Date(date)
+      return d.toISOString().substr(0,10)
     },
 
     async updateStudent() {
       if (!this.newStudent.id) return
+      const photoUrl = this.photoFile ? await this.uploadPhoto() : this.newStudent.photoUrl || ""
       try {
         await updateDoc(doc(db, "students", this.newStudent.id), {
-          name: this.newStudent.name,
-          rollNo: this.newStudent.rollNo,
-          classId: this.newStudent.classId,
-          dob: this.newStudent.dob || null,
-          admissionDate: this.newStudent.admissionDate
-            ? Timestamp.fromDate(new Date(this.newStudent.admissionDate))
-            : Timestamp.now(),
-          parentPhone: this.newStudent.parentPhone || null,
+          ...this.newStudent,
+          photoUrl,
+          admissionDate: this.newStudent.admissionDate ? Timestamp.fromDate(new Date(this.newStudent.admissionDate)) : Timestamp.now(),
         })
         alert("Student updated successfully")
         this.resetForm()
         this.fetchStudents()
-      } catch (err) {
+      } catch(err) {
         console.error("Update student error:", err)
         alert("Failed to update student")
+      }
+    },
+
+    async deleteStudent(student) {
+      if(!confirm(`Are you sure you want to delete ${student.name}?`)) return
+      try {
+        await deleteDoc(doc(db, "students", student.id))
+        alert("Student deleted successfully")
+        this.fetchStudents()
+      } catch(err) {
+        console.error("Delete student error:", err)
+        alert("Failed to delete student")
       }
     },
 
@@ -255,106 +275,122 @@ export default {
       this.newStudent = {
         id: null,
         name: "",
-        rollNo: "",
+        idNumber: "",
         classId: "class_1",
+        gender: "",
+        branch: "",
         dob: "",
         admissionDate: "",
         parentPhone: "",
+        photoUrl: "",
       }
+      this.photoFile = null
+      this.photoPreview = ""
       this.editing = false
     },
-
-    async deleteStudent(student) {
-      const ok = confirm(`Are you sure you want to delete ${student.name}?`)
-      if (!ok) return
-
-      try {
-        await deleteDoc(doc(db, "students", student.id))
-        alert("Student deleted successfully")
-        this.fetchStudents()
-      } catch (err) {
-        console.error("Delete student error:", err)
-        alert("Failed to delete student")
-      }
-    },
-  },
+  }
 }
 </script>
 
 <style scoped>
 .students-container {
-  padding: 2rem;
-  background: #f5f5f5;
+  padding: 1rem 2rem;
+  background: #f0f4f8;
   min-height: 100vh;
+  font-family: "Segoe UI", sans-serif;
 }
 
-.add-student-form {
+.page-title {
+  text-align: center;
+  color: #1e3a8a;
+  margin-bottom: 1rem;
+  margin-top: 0.5rem;
+}
+
+.card {
+  background: #fff;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px,1fr));
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.filter-search-line {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 2rem; /* dono items ke beech gap */
+  align-items: center; /* label aur input same horizontal line me */
+  flex-wrap: nowrap; /* wrap nahi hoga, hamesha ek line me rahega */
 }
 
-.filter-box {
-  margin-bottom: 1rem;
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem; /* label aur input ke beech gap */
 }
 
-input,
-select {
-  padding: 0.5rem;
+.filter-item label {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.small-select, .small-search-box {
+  padding: 0.25rem 0.4rem;
+  font-size: 0.8rem;
   border-radius: 5px;
+}
+
+input, select {
+  padding: 0.4rem;
+  border-radius: 6px;
   border: 1px solid #ccc;
+  width: 100%;
+  font-size: 0.9rem;
 }
 
-button {
-  padding: 0.5rem 1rem;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  cursor: pointer;
-  border-radius: 5px;
+.small-select { max-width: 160px; }
+
+.photo-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.edit-btn {
-  background: #ff9800;
-  margin-right: 5px;
-}
+.photo-preview { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; margin-top: 4px; border: 2px solid #2563eb; }
 
-.edit-btn:hover {
-  background: #fb8c00;
-}
+.form-actions { margin-top: 0.8rem; display: flex; gap: 0.4rem; }
 
-.delete-btn {
-  background: #e53935;
-}
+.primary-btn { background: #2563eb; color: #fff; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.9rem; cursor: pointer; }
+.secondary-btn { background: #9ca3af; color: #fff; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.9rem; cursor: pointer; }
 
-.delete-btn:hover {
-  background: #c62828;
-}
-
-.cancel-btn {
-  background: #9e9e9e;
-}
-
-.cancel-btn:hover {
-  background: #757575;
-}
+.edit-btn { background: #f59e0b; color:#fff; padding: 0.25rem 0.4rem; border-radius:5px; margin-right:3px; font-size:0.8rem; }
+.delete-btn { background: #ef4444; color:#fff; padding: 0.25rem 0.4rem; border-radius:5px; font-size:0.8rem; }
 
 table {
   width: 100%;
   border-collapse: collapse;
   background: white;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-th,
-td {
-  border: 1px solid #ccc;
-  padding: 0.8rem;
+th, td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.85rem;
 }
 
-th {
-  background: #2196F3;
-  color: white;
-}
+th { background: #2563eb; color: #fff; }
+
+.table-photo { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+
+.no-data { text-align: center; color: #6b7280; padding: 0.8rem; }
 </style>
 

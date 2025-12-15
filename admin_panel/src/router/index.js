@@ -8,6 +8,7 @@ import Fees from "../views/fees/Fees.vue"
 import Results from "../views/results/Results.vue"
 import Notices from "../views/notices/Notices.vue"
 import Gallery from "../views/gallery/Gallery.vue"
+import TimeTable from "../views/timetable/TimeTable.vue" // ya "@/views/timetable/TimeTable.vue" path ke hisab se
 
 const routes = [
   { path: "/", redirect: "/login" },
@@ -19,7 +20,8 @@ const routes = [
   { path: "/fees", component: Fees },
   { path: "/results", component: Results },
   { path: "/notices", component: Notices },
-  { path: "/gallery", component: Gallery }  // ← last item, no trailing comma
+  { path: "/gallery", component: Gallery },
+  { path: "/timetable", component: TimeTable },
 ]
 
 const router = createRouter({

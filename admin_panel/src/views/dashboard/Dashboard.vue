@@ -31,6 +31,14 @@
         <h2>{{ totalFees }}</h2>
         <p>Fees records</p>
       </div>
+      <div class="stat-card">
+        <h2>{{ totalTimeTables }}</h2>
+        <p>Time Tables</p>
+      </div>
+      <div class="stat-card">
+        <h2>{{ totalEvents }}</h2>
+        <p>Events</p>
+      </div>
     </div>
 
     <!-- Quick links row (blue buttons) -->
@@ -40,7 +48,9 @@
       <button class="link-card" @click="$router.push('/homework')">Homework</button>
       <button class="link-card" @click="$router.push('/fees')">Fees</button>
       <button class="link-card" @click="$router.push('/results')">Results</button>
-      <button class="link-card" @click="$router.push('/notices')">Notices</button>
+      <button class="link-card" @click="$router.push('/notices')">Announcements</button>
+      <button class="link-card" @click="$router.push('/timetable')">Time Table</button>
+      <button class="link-card" @click="$router.push('/events')">Events</button>
       <button class="link-card" @click="$router.push('/gallery')">Gallery</button>
     </div>
 
@@ -88,6 +98,8 @@ export default {
       totalResults: 0,
       totalAttendance: 0,
       totalFees: 0,
+      totalTimeTables: 0,
+      totalEvents: 0,
       chartData: null,
       chartOptions: {
         responsive: true,
@@ -134,13 +146,17 @@ export default {
         teachersSnap,
         resultsSnap,
         attendanceSnap,
-        feesSnap
+        feesSnap,
+        timetableSnap,
+        eventsSnap
       ] = await Promise.all([
         getDocs(collection(db, "students")),
         getDocs(query(collection(db, "users"), where("role", "==", "teacher"))),
         getDocs(collection(db, "results")),
         getDocs(collection(db, "attendance")),
-        getDocs(collection(db, "fees"))
+        getDocs(collection(db, "fees")),
+        getDocs(collection(db, "timetables")),
+        getDocs(collection(db, "events"))
       ])
 
       this.totalStudents = studentsSnap.size
@@ -148,6 +164,8 @@ export default {
       this.totalResults = resultsSnap.size
       this.totalAttendance = attendanceSnap.size
       this.totalFees = feesSnap.size
+      this.totalTimeTables = timetableSnap.size
+      this.totalEvents = eventsSnap.size
 
       this.buildChart()
     } catch (err) {
@@ -157,7 +175,15 @@ export default {
   methods: {
     buildChart() {
       this.chartData = {
-        labels: ["Students", "Teachers", "Results", "Attendance", "Fees"],
+        labels: [
+          "Students",
+          "Teachers",
+          "Results",
+          "Attendance",
+          "Fees",
+          "Time Tables",
+          "Events"
+        ],
         datasets: [
           {
             label: "Count",
@@ -166,7 +192,9 @@ export default {
               this.totalTeachers,
               this.totalResults,
               this.totalAttendance,
-              this.totalFees
+              this.totalFees,
+              this.totalTimeTables,
+              this.totalEvents
             ],
             backgroundColor: "#1976d2",
             hoverBackgroundColor: "#0d47a1",
@@ -224,10 +252,10 @@ export default {
   background: #d32f2f;
 }
 
-/* Top green stats (5 cards full-width) */
+/* Top green stats */
 .dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
   margin-bottom: 1rem;
 }
@@ -251,7 +279,7 @@ export default {
   font-size: 0.9rem;
 }
 
-/* Blue button row just below stats */
+/* Blue buttons */
 .quick-links {
   display: flex;
   flex-wrap: wrap;
@@ -278,7 +306,7 @@ export default {
   box-shadow: 0 5px 10px rgba(0,0,0,0.22);
 }
 
-/* Graph block bottom full width */
+/* Graph block */
 .chart-card {
   margin-top: 0.5rem;
   background: #ffffff;

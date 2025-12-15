@@ -1,6 +1,14 @@
 <template>
   <div class="fees-container">
+  <!-- Header with online fees icon -->
+  <div class="fees-header">
+    <img 
+      src="https://cdn-icons-png.flaticon.com/512/2920/2920316.png" 
+      alt="Fees Icon" 
+      class="fees-logo" 
+    />
     <h2>Student Fees Management</h2>
+  </div>
 
     <!-- Search bar -->
     <div class="search-row">
@@ -112,7 +120,7 @@
     <table v-if="filteredStudents.length" class="fees-table">
       <thead>
         <tr>
-          <th>Roll No</th>
+          <th>ID Number</th>
           <th>Name</th>
           <th>Class</th>
           <th>Total Fee</th>
@@ -126,7 +134,7 @@
       </thead>
       <tbody>
         <tr v-for="student in filteredStudents" :key="student.id">
-          <td>{{ student.rollNo || "-" }}</td>
+          <td>{{ student.idNumber || "-" }}</td>
           <td>{{ student.name || "-" }}</td>
           <td>{{ student.classId || "-" }}</td>
 
@@ -477,7 +485,7 @@ export default {
 
       doc.setFontSize(10)
       let y = 40
-      doc.text(`Student: ${student.name} (Roll: ${student.rollNo || "-"})`, 10, y)
+      doc.text(`Student: ${student.name} (ID: ${student.idNumber || "-"})`, 10, y)
       y += 6
       doc.text(`Class: ${student.classId || "-"}`, 10, y)
       y += 6
@@ -502,7 +510,7 @@ export default {
 
       doc.text("Thank you.", 10, y + 4)
 
-      const fileName = `fees_${student.rollNo || student.id}_${payment.date}.pdf`
+      const fileName = `fees_${student.idNumber || student.id}_${payment.date}.pdf`
       doc.save(fileName)
     },
 
@@ -532,7 +540,18 @@ export default {
   background: #f5f5f5;
   min-height: 100vh;
 }
+.fees-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem; /* chota gap */
+  margin-bottom: 0rem;
+}
 
+.fees-logo {
+  width: 34px;   /* chota size */
+  height: 34px;
+  object-fit: contain;
+}
 /* search row */
 .search-row {
   display: flex;

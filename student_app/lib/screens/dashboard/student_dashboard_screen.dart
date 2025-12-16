@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../achievements/AchievementsScreen.dart';
+import '../announcements/announcements_screen.dart';
 import '../assignments/assignments_screen.dart';
 import '../attendance/attendance_screen.dart';
+import '../class_diary/ClassDiary.dart';
 import '../event/event_calendar_screen.dart';
 import '../fees/fees_screen.dart';
+import '../gallery/gallery_screen.dart';
+import '../library/library_screen.dart';
 import '../objective/objective_exam_screen.dart';
+import '../ptm/ptm_feedback_screen.dart';
 import '../timetable/timetable_screen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
@@ -376,7 +382,7 @@ class StudentDashboardScreen extends StatelessWidget {
                       leading: const Icon(
                         Icons.photo_library,
                         size: 26,
-                        color: Colors.purple,
+                        color: Colors.green,
                       ),
                       title: const Text(
                         'Gallery',
@@ -392,7 +398,12 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const GalleryScreen(),
+                          ),
+                        );
                       },
                     ),
                     ListTile(
@@ -415,7 +426,12 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AchievementsScreen(),
+                          ),
+                        );
                       },
                     ),
                     ListTile(
@@ -438,7 +454,12 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ClassDiaryScreen(),
+                          ),
+                        );
                       },
                     ),
                     ListTile(
@@ -461,7 +482,12 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AnnouncementsScreen(),
+                          ),
+                        );
                       },
                     ),
                     ListTile(
@@ -484,9 +510,29 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        Navigator.pop(context);
+                        final clsId = classIdForScreens;
+                        final sid = studentIdForScreens;
+
+                        if (clsId.isEmpty || sid.isEmpty) {
+                          debugPrint(
+                            '❌ PTM Feedback: classId or studentId missing in student data: $data',
+                          );
+                          return;
+                        }
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PTMFeedbackScreen(
+                              classId: clsId,
+                              studentId: sid,
+                              meetingId: 'PTM-${DateTime.now().year}', // abhi simple id, baad me real PTM id rakh sakte ho
+                            ),
+                          ),
+                        );
                       },
                     ),
+
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 18),
                       child: Text(
@@ -517,7 +563,21 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        Navigator.pop(context);
+                        final clsId = classIdForScreens; // ya sirf classId bhi use kar sakte ho
+
+                        if (clsId.isEmpty) {
+                          debugPrint('❌ Library: classId missing in student data: $data');
+                          return;
+                        }
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => LibraryScreen(
+                              classId: clsId,
+                            ),
+                          ),
+                        );
                       },
                     ),
 
@@ -551,10 +611,19 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
+                        final clsId = classIdForScreens; // upar tumne already set kiya hai
+
+                        if (clsId.isEmpty) {
+                          debugPrint('❌ Objective Exams: classId missing in student data: $data');
+                          return;
+                        }
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const ObjectiveExamScreen(),
+                            builder: (_) => ObjectiveExamListScreen(
+                              classId: clsId,   // 👈 required named parameter yahan pass karo
+                            ),
                           ),
                         );
                       },

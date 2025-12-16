@@ -47,19 +47,22 @@
                 :key="day.value + '-' + col.key"
                 class="slot-cell"
                 :class="{'break-cell': col.type === 'break'}"
-                @click="col.type === 'period' ? editSlot(day.value, col.key) : null"
+                @click="editSlot(day.value, col.key)"
               >
+                <!-- Period cells -->
                 <span
                   v-if="col.type === 'period'"
                   class="slot-subject"
                 >
                   {{ getSlot(day.value, col.key) || '—' }}
                 </span>
+
+                <!-- Break cells: show saved text if any, otherwise default label -->
                 <span
                   v-else
                   class="break-label"
                 >
-                  {{ col.label }}
+                  {{ getSlot(day.value, col.key) || col.label }}
                 </span>
               </td>
             </tr>
@@ -79,11 +82,11 @@
         </h3>
         <div class="modal-body">
           <div class="field">
-            <label>Subject</label>
+            <label>Subject / Label</label>
             <input
               v-model="modalSubject"
               type="text"
-              placeholder="e.g. Math, Science"
+              placeholder="e.g. Math, Science, Break 1"
             />
           </div>
         </div>
@@ -99,7 +102,7 @@
 
 <script>
 import { db } from "../../services/firebase"
-import { doc, getDoc, setDoc } from "firebase/firestore" // [web:1262][web:1051]
+import { doc, getDoc, setDoc } from "firebase/firestore"
 
 export default {
   data() {
@@ -115,23 +118,23 @@ export default {
         { label: "Thu", value: "thu" },
         { label: "Fri", value: "fri" },
       ],
-      // columns image-style: CT, P1..P7, intervention, breaks
+      // columns: CT, P1..P7, intervention, breaks
       columns: [
-        { key: "ct",  label: "CT",             time: "7:30 - 7:55",   type: "period" },
-        { key: "p1",  label: "P1",             time: "7:55 - 8:35",   type: "period" },
-        { key: "ip",  label: "Intervention",   time: "8:35 - 9:10",   type: "period" },
-        { key: "br1", label: "Break 1",        time: "9:10 - 9:35",   type: "break"  },
-        { key: "p2",  label: "P2",             time: "9:35 - 10:15",  type: "period" },
-        { key: "p3",  label: "P3",             time: "10:15 - 10:55",  type: "period" },
-        { key: "br2", label: "Break 2",        time: "10:55 - 11:00", type: "break"  },
-        { key: "p4",  label: "P4",             time: "11:00 - 11:40", type: "period" },
-        { key: "p5",  label: "P5",             time: "11:40 - 12:20", type: "period" },
-        { key: "br3", label: "Break 3",        time: "12:20 - 12:25", type: "break"  },
-        { key: "p6",  label: "P6",             time: "12:25 - 1:05", type: "period" },
-        { key: "p7",  label: "P7",             time: "1:05 - 1:45",  type: "period" },
+        { key: "ct",  label: "CT",           time: "7:30 - 7:55",   type: "period" },
+        { key: "p1",  label: "P1",           time: "7:55 - 8:35",   type: "period" },
+        { key: "ip",  label: "Intervention", time: "8:35 - 9:10",   type: "period" },
+        { key: "br1", label: "Break 1",      time: "9:10 - 9:35",   type: "break"  },
+        { key: "p2",  label: "P2",           time: "9:35 - 10:15",  type: "period" },
+        { key: "p3",  label: "P3",           time: "10:15 - 10:55", type: "period" },
+        { key: "br2", label: "Break 2",      time: "10:55 - 11:00", type: "break"  },
+        { key: "p4",  label: "P4",           time: "11:00 - 11:40", type: "period" },
+        { key: "p5",  label: "P5",           time: "11:40 - 12:20", type: "period" },
+        { key: "br3", label: "Break 3",      time: "12:20 - 12:25", type: "break"  },
+        { key: "p6",  label: "P6",           time: "12:25 - 1:05",  type: "period" },
+        { key: "p7",  label: "P7",           time: "1:05 - 1:45",   type: "period" },
       ],
       selectedClass: "",
-      // timetable: { mon: { ct:"Math", p1:"Eng", ... }, tue: {...}, ... }
+      // timetable: { mon: { ct:"Math", p1:"Eng", br1:"Break 1", ... }, tue: {...}, ... }
       timetable: {},
       showModal: false,
       editingDay: "",
@@ -163,7 +166,6 @@ export default {
         if (snap.exists()) {
           this.timetable = snap.data()
         } else {
-          // init empty structure
           const base = {}
           for (const day of this.days) {
             base[day.value] = {}
@@ -183,7 +185,7 @@ export default {
     editSlot(day, key) {
       this.editingDay = day
       this.editingKey = key
-      this.modalSubject = this.getSlot(day, key)
+      this.modalSubject = this.getSlot(day, key) || ""
       this.showModal = true
     },
 
@@ -216,7 +218,7 @@ export default {
       if (!this.selectedClass) return
       try {
         const ref = doc(db, "timetables", this.selectedClass)
-        await setDoc(ref, this.timetable, { merge: true }) // [web:1051]
+        await setDoc(ref, this.timetable, { merge: true })
         alert("Time table saved.")
       } catch (e) {
         console.error("Save timetable error:", e)
@@ -228,6 +230,7 @@ export default {
 </script>
 
 <style scoped>
+/* same CSS as before */
 .timetable-page {
   padding: 1.2rem 1.5rem;
   background: #f5f5f5;
@@ -235,7 +238,6 @@ export default {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-/* Header */
 .tt-header {
   display: flex;
   justify-content: space-between;
@@ -290,7 +292,6 @@ export default {
   color: white;
 }
 
-/* Card + table */
 .card {
   background: #ffffff;
   border-radius: 0.8rem;
@@ -362,7 +363,6 @@ export default {
 
 .break-cell {
   background: #fff7d6;
-  cursor: default;
 }
 
 .break-cell:hover {
@@ -384,7 +384,6 @@ export default {
   color: #666;
 }
 
-/* Modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;

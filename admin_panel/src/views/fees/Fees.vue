@@ -1,14 +1,14 @@
 <template>
   <div class="fees-container">
-  <!-- Header with online fees icon -->
-  <div class="fees-header">
-    <img 
-      src="https://cdn-icons-png.flaticon.com/512/2920/2920316.png" 
-      alt="Fees Icon" 
-      class="fees-logo" 
-    />
-    <h2>Student Fees Management</h2>
-  </div>
+    <!-- Header with online fees icon -->
+    <div class="fees-header">
+      <img
+        src="https://cdn-icons-png.flaticon.com/512/2920/2920316.png"
+        alt="Fees Icon"
+        class="fees-logo"
+      />
+      <h2>Student Fees Management</h2>
+    </div>
 
     <!-- Search bar -->
     <div class="search-row">
@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <!-- Single top line form -->
+    <!-- Top line form -->
     <div v-if="isTeacherOrAdmin" class="top-form">
       <div class="top-field">
         <label>Student:</label>
@@ -41,7 +41,7 @@
             :key="s.id"
             :value="s.id"
           >
-            {{ s.rollNo }} - {{ s.name }} ({{ s.classId }})
+            {{ s.rollNo || s.idNumber || "–" }} - {{ s.name }} ({{ s.classId }})
           </option>
         </select>
       </div>
@@ -134,7 +134,7 @@
       </thead>
       <tbody>
         <tr v-for="student in filteredStudents" :key="student.id">
-          <td>{{ student.idNumber || "-" }}</td>
+          <td>{{ student.idNumber || student.rollNo || "-" }}</td>
           <td>{{ student.name || "-" }}</td>
           <td>{{ student.classId || "-" }}</td>
 
@@ -224,7 +224,7 @@ import {
   getDoc,
   setDoc
 } from "firebase/firestore"
-import { jsPDF } from "jspdf"   // npm i jspdf [web:248]
+import { jsPDF } from "jspdf"  // [web:248]
 
 export default {
   data() {
@@ -251,7 +251,6 @@ export default {
       return this.user.role === "teacher" || this.user.role === "admin"
     },
 
-    // name + class filter
     filteredStudents() {
       const name = this.searchName.trim().toLowerCase()
       const cls = this.searchClass.trim().toLowerCase()
@@ -263,7 +262,6 @@ export default {
         const matchName = !name || sName.includes(name)
         const matchClass = !cls || sClass.includes(cls)
 
-        // dono condition AND, dono bhare ho to dono match; agar koi empty hai to sirf dusra chalega
         return matchName && matchClass
       })
     }
@@ -273,7 +271,6 @@ export default {
       try {
         const colRef = collection(db, "students")
         const snap = await getDocs(colRef)
-        console.log("students size:", snap.size)
         this.students = snap.docs.map(d => ({ id: d.id, ...d.data() }))
         await this.fetchFees()
       } catch (err) {
@@ -338,7 +335,9 @@ export default {
     },
 
     async submitPayment() {
-      const { studentId, totalFee, amount, mode, month, year, txnRef } = this.paymentForm
+      const { studentId, totalFee, amount, mode, month, year, txnRef } =
+        this.paymentForm
+
       if (!studentId) {
         alert("Select a student")
         return
@@ -389,6 +388,7 @@ export default {
         }
 
         await setDoc(docRef, updated)
+        // Vue 2 compatibility
         this.$set
           ? this.$set(this.feesData, studentId, updated)
           : (this.feesData = { ...this.feesData, [studentId]: updated })
@@ -410,10 +410,12 @@ export default {
       const newAmount = Number(newAmountStr)
       if (!newAmount || newAmount <= 0) return
 
-      const newMode = prompt("Edit mode (cash/online/bank)", payment.mode) || payment.mode
+      const newMode =
+        prompt("Edit mode (cash/online/bank)", payment.mode) || payment.mode
       let newTxn = payment.txnRef || ""
       if (newMode !== "cash") {
-        newTxn = prompt("Edit transaction no", payment.txnRef || "") || ""
+        newTxn =
+          prompt("Edit transaction no", payment.txnRef || "") || ""
       } else {
         newTxn = ""
       }
@@ -469,7 +471,7 @@ export default {
     },
 
     generateBill(student, payment, feeDoc) {
-      const doc = new jsPDF()
+      const docPdf = new jsPDF()
 
       const schoolName = "Your School Name"
       const address = "School Address, City"
@@ -477,41 +479,45 @@ export default {
       const totalPaid = feeDoc.totalPaid || 0
       const balance = totalFee - totalPaid
 
-      doc.setFontSize(16)
-      doc.text(schoolName, 10, 15)
-      doc.setFontSize(11)
-      doc.text(address, 10, 22)
-      doc.text("Fees Payment Receipt", 10, 30)
+      docPdf.setFontSize(16)
+      docPdf.text(schoolName, 10, 15)
+      docPdf.setFontSize(11)
+      docPdf.text(address, 10, 22)
+      docPdf.text("Fees Payment Receipt", 10, 30)
 
-      doc.setFontSize(10)
+      docPdf.setFontSize(10)
       let y = 40
-      doc.text(`Student: ${student.name} (ID: ${student.idNumber || "-"})`, 10, y)
+      docPdf.text(
+        `Student: ${student.name} (ID: ${student.idNumber || student.id || "-"})`,
+        10,
+        y
+      )
       y += 6
-      doc.text(`Class: ${student.classId || "-"}`, 10, y)
+      docPdf.text(`Class: ${student.classId || "-"}`, 10, y)
       y += 6
-      doc.text(`Date: ${this.formatDate(payment.date)}`, 10, y)
+      docPdf.text(`Date: ${this.formatDate(payment.date)}`, 10, y)
       y += 10
 
-      doc.text(`Total Fee: ${totalFee}`, 10, y)
+      docPdf.text(`Total Fee: ${totalFee}`, 10, y)
       y += 6
-      doc.text(`Total Paid (till now): ${totalPaid}`, 10, y)
+      docPdf.text(`Total Paid (till now): ${totalPaid}`, 10, y)
       y += 6
-      doc.text(`This Payment: ${payment.amount}`, 10, y)
+      docPdf.text(`This Payment: ${payment.amount}`, 10, y)
       y += 6
-      doc.text(`Balance: ${balance}`, 10, y)
+      docPdf.text(`Balance: ${balance}`, 10, y)
       y += 10
 
-      doc.text(`Mode: ${payment.mode}`, 10, y)
+      docPdf.text(`Mode: ${payment.mode}`, 10, y)
       y += 6
       if (payment.mode !== "cash" && payment.txnRef) {
-        doc.text(`Transaction No: ${payment.txnRef}`, 10, y)
+        docPdf.text(`Transaction No: ${payment.txnRef}`, 10, y)
         y += 6
       }
 
-      doc.text("Thank you.", 10, y + 4)
+      docPdf.text("Thank you.", 10, y + 4)
 
       const fileName = `fees_${student.idNumber || student.id}_${payment.date}.pdf`
-      doc.save(fileName)
+      docPdf.save(fileName)
     },
 
     formatDate(dateStr) {
@@ -543,35 +549,30 @@ export default {
 .fees-header {
   display: flex;
   align-items: center;
-  gap: 0.6rem; /* chota gap */
+  gap: 0.6rem;
   margin-bottom: 0rem;
 }
-
 .fees-logo {
-  width: 34px;   /* chota size */
+  width: 34px;
   height: 34px;
   object-fit: contain;
 }
-/* search row */
 .search-row {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 0.7rem;
 }
-
 .search-field {
   display: flex;
   align-items: center;
   gap: 0.3rem;
 }
-
 .search-field input {
   padding: 0.3rem 0.5rem;
   border-radius: 4px;
   border: 1px solid #ccc;
 }
-
 .top-form {
   display: flex;
   flex-wrap: wrap;
@@ -579,30 +580,25 @@ export default {
   gap: 1rem;
   margin-bottom: 0.5rem;
 }
-
 .top-field {
   display: flex;
   align-items: center;
   gap: 0.3rem;
 }
-
 .top-field label {
   font-weight: 600;
 }
-
 .top-field input,
 .top-field select {
   padding: 0.3rem 0.5rem;
   border-radius: 4px;
   border: 1px solid #ccc;
 }
-
 .top-buttons {
   margin-left: auto;
   display: flex;
   gap: 0.4rem;
 }
-
 .top-buttons button {
   padding: 0.4rem 0.9rem;
   border: none;
@@ -610,54 +606,44 @@ export default {
   cursor: pointer;
   color: #fff;
 }
-
 .top-buttons button:first-child {
   background: #4caf50;
 }
-
 .top-buttons .clear-btn {
   background: #9e9e9e;
 }
-
 .fees-table {
   width: 100%;
   border-collapse: collapse;
   background: white;
   margin-top: 0.5rem;
 }
-
 th,
 td {
   border: 1px solid #ccc;
   padding: 0.8rem;
   text-align: left;
 }
-
 th {
-  background: #2196F3;
+  background: #2196f3;
   color: white;
 }
-
-/* actions column lists */
 .actions-row {
   display: flex;
   gap: 0.3rem;
   margin-bottom: 0.25rem;
 }
-
 button {
   padding: 0.3rem 0.6rem;
   border: none;
   border-radius: 4px;
-  background: #4CAF50;
+  background: #4caf50;
   color: white;
   cursor: pointer;
 }
-
 button:hover {
   background: #45a049;
 }
-
 .bill-btn {
   padding: 0.2rem 0.5rem;
   background: #1976d2;
@@ -665,11 +651,9 @@ button:hover {
   border-radius: 3px;
   font-size: 0.75rem;
 }
-
 .bill-btn:hover {
   background: #1565c0;
 }
-
 .edit-btn {
   padding: 0.2rem 0.5rem;
   background: #ff9800;
@@ -677,11 +661,9 @@ button:hover {
   border-radius: 3px;
   font-size: 0.75rem;
 }
-
 .edit-btn:hover {
   background: #fb8c00;
 }
-
 .delete-btn {
   padding: 0.2rem 0.5rem;
   background: #f44336;
@@ -689,27 +671,21 @@ button:hover {
   border-radius: 3px;
   font-size: 0.75rem;
 }
-
 .delete-btn:hover {
   background: #d32f2f;
 }
-
-/* status colours */
 .status-paid {
   color: #2e7d32;
   font-weight: 600;
 }
-
 .status-partial {
   color: #f9a825;
   font-weight: 600;
 }
-
 .status-unpaid {
   color: #c62828;
   font-weight: 600;
 }
-
 .status-unknown {
   color: #757575;
 }

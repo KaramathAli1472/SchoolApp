@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router"
+
 import Login from "../views/login/Login.vue"
 import Dashboard from "../views/dashboard/Dashboard.vue"
 import Students from "../views/students/Students.vue"
@@ -8,7 +9,10 @@ import Fees from "../views/fees/Fees.vue"
 import Results from "../views/results/Results.vue"
 import Notices from "../views/notices/Notices.vue"
 import Gallery from "../views/gallery/Gallery.vue"
-import TimeTable from "../views/timetable/TimeTable.vue" // ya "@/views/timetable/TimeTable.vue" path ke hisab se
+import TimeTable from "../views/timetable/TimeTable.vue"
+
+// ✅ ONLY Event Calendar
+import EventCalendar from "../views/events/EventCalendar.vue"
 
 const routes = [
   { path: "/", redirect: "/login" },
@@ -22,6 +26,9 @@ const routes = [
   { path: "/notices", component: Notices },
   { path: "/gallery", component: Gallery },
   { path: "/timetable", component: TimeTable },
+
+  // ✅ Event Calendar
+  { path: "/events", component: EventCalendar },
 ]
 
 const router = createRouter({

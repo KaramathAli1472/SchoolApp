@@ -210,15 +210,23 @@ export default {
         return
       }
       this.activeDate = this.selectedDate
-      this.prepareAttendance()
+      this.fetchAttendance()   // date change pe fresh load
     },
 
     async fetchAttendance() {
       try {
+        // 1) Students list (role + class filter same as pehle)
         const studentsRef = collection(db, "students")
         let q = studentsRef
 
-        console.log("role:", this.user.role, "classId:", this.user.classId, "selectedClass:", this.selectedClass)
+        console.log(
+          "role:",
+          this.user.role,
+          "classId:",
+          this.user.classId,
+          "selectedClass:",
+          this.selectedClass
+        )
 
         if (this.user.role === "superadmin") {
           q = studentsRef
@@ -232,10 +240,8 @@ export default {
           if (this.selectedClass) {
             q = query(studentsRef, where("classId", "==", this.selectedClass))
           } else if (this.user.classId) {
-            // sirf tab where lagao jab classId defined hai
             q = query(studentsRef, where("classId", "==", this.user.classId))
           } else {
-            // fallback: saare students
             q = studentsRef
           }
         }
@@ -244,19 +250,39 @@ export default {
         console.log("👀 Students fetched:", snap.size)
         this.students = snap.docs.map(d => ({ id: d.id, ...d.data() }))
 
-        // Fetch attendance for selected class/all
-        const docId = this.selectedClass || "all_classes"
-        const classRef = doc(db, "attendance", docId)
-        const docSnap = await getDoc(classRef)
+        // 2) Attendance: date-wise doc
+        if (!this.activeDate) {
+          this.allAttendanceRecords = []
+          this.prepareAttendance()
+          return
+        }
+
+        const docId = this.activeDate           // e.g. "2025-12-15"
+        const dateRef = doc(db, "attendance", docId)
+        const docSnap = await getDoc(dateRef)
         const attendanceData = docSnap.exists() ? docSnap.data() : {}
 
+        // Expected structure:
+        // {
+        //   "class_2": {
+        //      "studentId": { name, idNumber, classId, photoUrl, status }
+        //   },
+        //   "class_3": { ... }
+        // }
+
         const records = []
-        for (const date in attendanceData) {
-          if (!attendanceData[date] || typeof attendanceData[date] !== "object") continue
-          for (const studentId in attendanceData[date]) {
-            const rec = attendanceData[date][studentId]
+
+        for (const cid in attendanceData) {
+          const classBlock = attendanceData[cid]
+          if (!classBlock || typeof classBlock !== "object") continue
+
+          // Agar UI me class filter laga ho, to yahin filter kar sakte ho
+          if (this.selectedClass && cid !== this.selectedClass) continue
+
+          for (const studentId in classBlock) {
+            const rec = classBlock[studentId]
             records.push({
-              date,
+              date: this.activeDate,
               id: studentId,
               name: rec.name,
               idNumber: rec.idNumber,
@@ -266,6 +292,7 @@ export default {
             })
           }
         }
+
         this.allAttendanceRecords = records
         this.prepareAttendance()
       } catch (err) {
@@ -363,31 +390,35 @@ export default {
         return
       }
       try {
-        const docId = this.selectedClass || "all_classes"
-        const classRef = doc(db, "attendance", docId)
+        const docId = this.activeDate        // date-wise document
+        const dateRef = doc(db, "attendance", docId)
+
+        // Build payload: { classId: { studentId: {...} } }
         const attendancePayload = {}
+
         this.allAttendanceRecords.forEach(s => {
-          if (s.status) {
-            if (!attendancePayload[this.activeDate]) {
-              attendancePayload[this.activeDate] = {}
-            }
-            attendancePayload[this.activeDate][s.id] = {
-              name: s.name,
-              idNumber: s.idNumber,
-              classId: s.classId,
-              photoUrl: s.photoUrl,
-              status: s.status
-            }
+          if (!s.status) return
+          const cid = s.classId || "unknown"
+
+          if (!attendancePayload[cid]) {
+            attendancePayload[cid] = {}
+          }
+
+          attendancePayload[cid][s.id] = {
+            name: s.name,
+            idNumber: s.idNumber,
+            classId: s.classId,
+            photoUrl: s.photoUrl,
+            status: s.status
           }
         })
+
         await setDoc(
-          classRef,
-          {
-            classId: this.selectedClass || "",
-            ...attendancePayload
-          },
+          dateRef,
+          attendancePayload,
           { merge: true }
         )
+
         alert("Attendance saved successfully!")
         await this.fetchAttendance()
       } catch (err) {

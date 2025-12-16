@@ -1,6 +1,6 @@
 <template>
-  <div class="notices-page">
-    <div class="notices-card">
+  <div class="announcements-page">
+    <div class="announcements-card">
       <!-- Top bar -->
       <div class="card-header">
         <div class="title-block">
@@ -60,7 +60,7 @@
         </div>
 
         <div class="form-actions">
-          <button class="btn primary" @click="saveNotice">
+          <button class="btn primary" @click="saveAnnouncement">
             {{ editingId ? 'Update' : 'Publish' }}
           </button>
           <button class="btn ghost" @click="resetForm">Clear</button>
@@ -70,28 +70,28 @@
       <!-- List -->
       <div class="list-header">
         <span class="list-title">Recent announcements</span>
-        <span class="list-meta">{{ filteredNotices.length }} total</span>
+        <span class="list-meta">{{ filteredAnnouncements.length }} total</span>
       </div>
 
-      <ul v-if="filteredNotices.length" class="notice-list">
+      <ul v-if="filteredAnnouncements.length" class="announcement-list">
         <li
-          v-for="notice in filteredNotices"
-          :key="notice.id"
-          class="notice-row"
+          v-for="item in filteredAnnouncements"
+          :key="item.id"
+          class="announcement-row"
         >
           <div class="row-main">
             <div class="row-title">
               <span class="row-icon">🔔</span>
-              <span class="title-text">{{ notice.title }}</span>
+              <span class="title-text">{{ item.title }}</span>
               <span class="class-badge">
-                {{ notice.classId || 'All classes' }}
+                {{ item.classId || 'All classes' }}
               </span>
             </div>
-            <p class="row-desc">{{ notice.description }}</p>
+            <p class="row-desc">{{ item.description }}</p>
           </div>
 
           <div class="row-meta">
-            <span class="date-pill">{{ formatDate(notice.date) }}</span>
+            <span class="date-pill">{{ formatDate(item.date) }}</span>
 
             <div
               v-if="isTeacherOrAdmin"
@@ -100,14 +100,14 @@
               <button
                 class="icon-btn"
                 title="Edit"
-                @click="startEdit(notice)"
+                @click="startEdit(item)"
               >
                 ✏️
               </button>
               <button
                 class="icon-btn delete"
                 title="Delete"
-                @click="deleteNotice(notice)"
+                @click="deleteAnnouncement(item)"
               >
                 🗑
               </button>
@@ -129,12 +129,13 @@ import {
   doc,
   setDoc,
   deleteDoc
-} from "firebase/firestore"   // [web:361][web:362]
+} from "firebase/firestore"  // [web:162][web:331]
 
 export default {
+  name: "Announcements",
   data() {
     return {
-      notices: [],
+      announcements: [],
       form: {
         title: "",
         description: "",
@@ -154,17 +155,17 @@ export default {
     isTeacherOrAdmin() {
       return ["teacher", "admin"].includes(this.user.role)
     },
-    filteredNotices() {
-      if (!this.filterClass) return this.notices
-      return this.notices.filter(
-        n => !n.classId || n.classId === this.filterClass
+    filteredAnnouncements() {
+      if (!this.filterClass) return this.announcements
+      return this.announcements.filter(
+        a => !a.classId || a.classId === this.filterClass
       )
     }
   },
   methods: {
-    async fetchNotices() {
-      const snap = await getDocs(collection(db, "notices"))
-      this.notices = snap.docs
+    async fetchAnnouncements() {
+      const snap = await getDocs(collection(db, "announcements"))
+      this.announcements = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => new Date(b.date) - new Date(a.date))
     },
@@ -187,17 +188,17 @@ export default {
       this.form = { title: "", description: "", classId: "" }
       this.editingId = null
     },
-    startEdit(notice) {
+    startEdit(item) {
       if (!this.isTeacherOrAdmin) return
       this.form = {
-        title: notice.title,
-        description: notice.description,
-        classId: notice.classId || ""
+        title: item.title,
+        description: item.description,
+        classId: item.classId || ""
       }
-      this.editingId = notice.id
+      this.editingId = item.id
       this.showForm = true
     },
-    async saveNotice() {
+    async saveAnnouncement() {
       if (!this.isTeacherOrAdmin) {
         alert("Not allowed.")
         return
@@ -218,41 +219,41 @@ export default {
         date: nowIso
       }
 
-      const docRef = doc(db, "notices", id)
-      await setDoc(docRef, payload)   // [web:247][web:351]
+      const docRef = doc(db, "announcements", id)
+      await setDoc(docRef, payload)  // [web:331]
 
       if (this.editingId) {
-        this.notices = this.notices.map(n =>
-          n.id === id ? { id, ...payload } : n
+        this.announcements = this.announcements.map(a =>
+          a.id === id ? { id, ...payload } : a
         )
       } else {
-        this.notices = [{ id, ...payload }, ...this.notices]
+        this.announcements = [{ id, ...payload }, ...this.announcements]
       }
 
       this.resetForm()
       this.showForm = false
     },
-    async deleteNotice(notice) {
+    async deleteAnnouncement(item) {
       if (!this.isTeacherOrAdmin) {
         alert("Not allowed.")
         return
       }
       if (!confirm("Delete this announcement?")) return
 
-      const docRef = doc(db, "notices", notice.id)
-      await deleteDoc(docRef)   // [web:361][web:368]
+      const docRef = doc(db, "announcements", item.id)
+      await deleteDoc(docRef)
 
-      this.notices = this.notices.filter(n => n.id !== notice.id)
+      this.announcements = this.announcements.filter(a => a.id !== item.id)
     }
   },
   mounted() {
-    this.fetchNotices()
+    this.fetchAnnouncements()
   }
 }
 </script>
 
 <style scoped>
-.notices-page {
+.announcements-page {
   min-height: 100vh;
   padding: 1rem;
   background: radial-gradient(circle at top left, #e0f2fe, #f5f5f7);
@@ -262,7 +263,7 @@ export default {
   justify-content: center;
 }
 
-.notices-card {
+.announcements-card {
   width: 100%;
   max-width: 880px;
   background: #ffffff;
@@ -425,13 +426,13 @@ export default {
   color: #6b7280;
 }
 
-.notice-list {
+.announcement-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.notice-row {
+.announcement-row {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
@@ -443,7 +444,7 @@ export default {
   transition: all 0.15s ease;
 }
 
-.notice-row:hover {
+.announcement-row:hover {
   background: #eef3ff;
   border-color: #c7d2fe;
 }
@@ -536,7 +537,7 @@ export default {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .notices-page {
+  .announcements-page {
     padding: 0.8rem;
   }
   .card-header {
@@ -551,7 +552,7 @@ export default {
   .field-row {
     flex-direction: column;
   }
-  .notice-row {
+  .announcement-row {
     flex-direction: column;
     align-items: flex-start;
   }

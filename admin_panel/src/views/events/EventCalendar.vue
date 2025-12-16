@@ -43,7 +43,10 @@
             <div class="card-subtitle">{{ item.subtitle }}</div>
           </div>
 
-          <div class="card-arrow">›</div>
+          <div class="card-actions">
+            <button class="small-btn edit" @click="editItem(item)">Edit</button>
+            <button class="small-btn delete" @click="deleteItem(item)">Delete</button>
+          </div>
         </div>
       </div>
 
@@ -64,7 +67,10 @@ import {
   addDoc,
   onSnapshot,
   query,
-  orderBy
+  orderBy,
+  doc,
+  updateDoc,
+  deleteDoc
 } from 'firebase/firestore'
 import { db } from '../../firebase'
 
@@ -80,10 +86,10 @@ onMounted(() => {
   const q = query(eventsColRef, orderBy('date', 'asc'))
   onSnapshot(q, (snap) => {
     const arr = []
-    snap.forEach(doc => {
-      const data = doc.data() || {}
+    snap.forEach(docSnap => {
+      const data = docSnap.data() || {}
       arr.push({
-        id: doc.id,
+        id: docSnap.id,
         type: data.type || 'event',
         title: data.title || '',
         subtitle: data.subtitle || '',
@@ -147,6 +153,47 @@ async function handleDateClick(info) {
       api.gotoDate(info.date)
     }
   })
+}
+
+// Edit selected card (update Firestore)
+async function editItem(item) {
+  const newTitle = prompt('Edit title', item.title)
+  if (!newTitle) return
+
+  const newSubtitle = prompt('Edit subtitle', item.subtitle || '') || ''
+  const newTagLabel = prompt('Edit tag label', item.tagLabel) || item.tagLabel
+  const newColor =
+    prompt('Edit color hex', item.tagColor || '#009966') ||
+    item.tagColor
+
+  const ref = doc(eventsColRef, item.id)
+
+  try {
+    await updateDoc(ref, {
+      title: newTitle,
+      subtitle: newSubtitle,
+      tagLabel: newTagLabel,
+      tagColor: newColor
+    }) // snapshot se allItems/ calendar auto refresh[web:51][web:68]
+  } catch (e) {
+    console.error('Error updating document:', e)
+    alert('Failed to update event')
+  }
+}
+
+// Delete selected card (remove from Firestore)
+async function deleteItem(item) {
+  const ok = confirm('Delete this item?')
+  if (!ok) return
+
+  const ref = doc(eventsColRef, item.id)
+
+  try {
+    await deleteDoc(ref) // snapshot se list + calendar se bhi hat jayega[web:51][web:68]
+  } catch (e) {
+    console.error('Error deleting document:', e)
+    alert('Failed to delete event')
+  }
 }
 
 const calendarOptions = ref({
@@ -228,6 +275,7 @@ function formatDate(isoDate) {
 .card-body {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 .card-icon {
   font-size: 24px;
@@ -243,9 +291,25 @@ function formatDate(isoDate) {
 .card-subtitle {
   font-size: 14px;
 }
-.card-arrow {
-  font-size: 20px;
-  color: #999;
+.card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.small-btn {
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.small-btn.edit {
+  background: #1976d2;
+  color: #fff;
+}
+.small-btn.delete {
+  background: #d32f2f;
+  color: #fff;
 }
 .empty-text {
   margin-top: 8px;

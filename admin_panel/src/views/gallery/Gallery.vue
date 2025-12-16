@@ -13,11 +13,11 @@
           class="btn primary"
           @click="toggleForm"
         >
-          {{ showForm ? 'Close' : '+ Add event' }}
+          {{ showForm ? (editingId ? 'Close edit' : 'Close') : '+ Add event' }}
         </button>
       </div>
 
-      <!-- Add event (title + date + desc + photos) -->
+      <!-- Add / Edit event -->
       <div v-if="showForm" class="add-event">
         <div class="field-row">
           <div class="field">
@@ -25,11 +25,11 @@
             <input
               v-model="form.title"
               type="text"
-              placeholder="e.g. School event title"
+              placeholder="e.g. Sports Carnival"
             />
           </div>
           <div class="field">
-            <label>Event date (DD/MM/YYYY)</label>
+            <label>Event date</label>
             <input
               v-model="form.eventDate"
               type="date"
@@ -47,7 +47,7 @@
         </div>
 
         <div class="field">
-          <label>Photos</label>
+          <label>Photos <span style="color:#6b7280">(optional on edit)</span></label>
           <label class="upload-label">
             <input
               type="file"
@@ -56,9 +56,13 @@
               @change="onFilesSelected"
             />
             <span>
-              {{ selectedFiles.length
-                ? selectedFiles.length + ' file(s) selected'
-                : 'Choose photos' }}
+              {{
+                selectedFiles.length
+                  ? selectedFiles.length + ' file(s) selected'
+                  : editingId
+                    ? 'Choose photos to ADD (optional)'
+                    : 'Choose photos'
+              }}
             </span>
           </label>
         </div>
@@ -67,9 +71,9 @@
           <button
             class="btn primary"
             :disabled="uploading"
-            @click="uploadEventPhotos"
+            @click="editingId ? updateEvent() : uploadEventPhotos()"
           >
-            {{ uploading ? 'Uploading...' : 'Save event' }}
+            {{ uploading ? 'Saving...' : (editingId ? 'Update event' : 'Save event') }}
           </button>
           <button class="btn ghost" @click="resetForm">Clear</button>
         </div>
@@ -81,6 +85,7 @@
           v-for="photo in photos"
           :key="photo.id"
           class="photo-item"
+          @click="openDetail(photo)"
         >
           <div class="thumb">
             <img :src="photo.url || photo.photoURLs?.[0]" :alt="photo.eventTitle" />
@@ -92,10 +97,22 @@
             </p>
             <div class="meta">
               <span>
-                {{ photo.eventDate
-                  ? formatDate(photo.eventDate)
-                  : formatDate(photo.date) }}
+                {{
+                  photo.eventDate
+                    ? formatDate(photo.eventDate)
+                    : formatDate(photo.date)
+                }}
               </span>
+            </div>
+
+            <!-- Actions (Edit/Delete) -->
+            <div
+              v-if="isTeacherOrAdmin"
+              class="actions"
+              @click.stop
+            >
+              <button class="link-btn" @click="startEdit(photo)">Edit</button>
+              <button class="link-btn danger" @click="deleteEvent(photo)">Delete</button>
             </div>
           </div>
         </article>
@@ -103,13 +120,51 @@
 
       <p v-else class="empty-text">No photos uploaded yet.</p>
     </div>
+
+    <!-- Detail modal -->
+    <div v-if="detailPhoto" class="modal-backdrop" @click="closeDetail">
+      <div class="modal-dialog" @click.stop>
+        <button class="modal-close" @click="closeDetail">×</button>
+        <div class="modal-image">
+          <img :src="detailPhoto.url || detailPhoto.photoURLs?.[0]" :alt="detailPhoto.eventTitle" />
+        </div>
+        <div class="modal-body">
+          <h3>{{ detailPhoto.eventTitle || 'Untitled event' }}</h3>
+          <p class="modal-date">
+            {{
+              detailPhoto.eventDate
+                ? formatDate(detailPhoto.eventDate)
+                : formatDate(detailPhoto.date)
+            }}
+          </p>
+          <p v-if="detailPhoto.description" class="modal-desc">
+            {{ detailPhoto.description }}
+          </p>
+          <div
+            v-if="detailPhoto.photoURLs && detailPhoto.photoURLs.length > 1"
+            class="thumb-strip"
+          >
+            <img
+              v-for="(u, idx) in detailPhoto.photoURLs"
+              :key="idx"
+              :src="u"
+              :alt="'Photo ' + (idx + 1)"
+              @click="detailPhoto.url = u"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { db, storage } from "../../services/firebase"
-import { collection, getDocs, doc, setDoc } from "firebase/firestore"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"  // [web:392]
+import { db } from '../../services/firebase'
+import { collection, getDocs, doc, setDoc, query, orderBy, deleteDoc } from 'firebase/firestore'
+
+const CLOUD_NAME = 'drxe5e2nk'
+const UPLOAD_PRESET = 'students_photos'
+const CLOUD_FOLDER = 'school_gallery'
 
 export default {
   data() {
@@ -119,28 +174,34 @@ export default {
       showForm: false,
       selectedFiles: [],
       form: {
-        title: "",
-        description: "",
-        eventDate: ""
+        title: '',
+        description: '',
+        eventDate: ''
       },
-      user: JSON.parse(localStorage.getItem("user")) || {}
+      editingId: null,
+      detailPhoto: null,
+      user: JSON.parse(localStorage.getItem('user') || '{}')
     }
   },
   computed: {
     isTeacherOrAdmin() {
-      return ["teacher", "admin"].includes(this.user.role)
+      return ['teacher', 'admin'].includes(this.user.role)
     }
   },
   methods: {
     async fetchGallery() {
-      const snap = await getDocs(collection(db, "gallery"))
-      this.photos = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
+      try {
+        const q = query(collection(db, 'gallery'), orderBy('date', 'desc'))
+        const snap = await getDocs(q)
+        this.photos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      } catch (e) {
+        console.error('Error loading gallery', e)
+        alert('Failed to load gallery: ' + (e.message || e))
+      }
     },
     toggleForm() {
       if (!this.isTeacherOrAdmin) {
-        alert("Only teachers and admins can add gallery photos.")
+        alert('Only teachers and admins can add gallery photos.')
         return
       }
       this.showForm = !this.showForm
@@ -150,25 +211,26 @@ export default {
       this.selectedFiles = Array.from(e.target.files || [])
     },
     resetForm() {
-      this.form = { title: "", description: "", eventDate: "" }
+      this.form = { title: '', description: '', eventDate: '' }
       this.selectedFiles = []
       this.uploading = false
+      this.editingId = null
     },
     async uploadEventPhotos() {
       if (!this.isTeacherOrAdmin) {
-        alert("Not allowed.")
+        alert('Not allowed.')
         return
       }
       if (!this.form.title) {
-        alert("Event title is required.")
+        alert('Event title is required.')
         return
       }
       if (!this.form.eventDate) {
-        alert("Event date is required.")
+        alert('Event date is required.')
         return
       }
       if (!this.selectedFiles.length) {
-        alert("Please select at least one photo.")
+        alert('Please select at least one photo.')
         return
       }
 
@@ -177,47 +239,159 @@ export default {
         const eventId = Date.now().toString()
         const urls = []
 
-        for (let file of this.selectedFiles) {
-          const fileId = `${eventId}_${file.name}`
-          const storageRef = ref(storage, `gallery_photos/${fileId}`)
-          await uploadBytes(storageRef, file)
-          const url = await getDownloadURL(storageRef)
-          urls.push(url)
+        for (const file of this.selectedFiles) {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('upload_preset', UPLOAD_PRESET)
+          if (CLOUD_FOLDER) formData.append('folder', CLOUD_FOLDER)
+
+          const res = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+            { method: 'POST', body: formData }
+          )
+
+          if (!res.ok) {
+            const txt = await res.text()
+            throw new Error('Cloudinary upload failed: ' + txt)
+          }
+
+          const data = await res.json()
+          urls.push(data.secure_url)
         }
 
-        const docRef = doc(db, "gallery", eventId)
+        const docRef = doc(db, 'gallery', eventId)
         const payload = {
           eventTitle: this.form.title,
-          description: this.form.description || "",
-          eventDate: this.form.eventDate,               // YYYY-MM-DD
-          date: new Date().toISOString(),              // upload date
+          description: this.form.description || '',
+          eventDate: this.form.eventDate,
+          date: new Date().toISOString(),
           photoURLs: urls,
           url: urls[0],
-          uploadedBy: this.user?.uid || "admin"
+          uploadedBy: this.user?.uid || 'admin',
+          storage: 'cloudinary'
         }
         await setDoc(docRef, payload)
 
         this.photos = [{ id: eventId, ...payload }, ...this.photos]
         this.resetForm()
         this.showForm = false
-        alert("Gallery event saved")
+        alert('Gallery event saved')
       } catch (e) {
-        console.error("Gallery upload error", e)
-        alert("Failed to upload event photos")
+        console.error('Gallery upload error', e)
+        alert('Failed to upload event photos: ' + (e.message || e))
       } finally {
         this.uploading = false
       }
     },
+    startEdit(photo) {
+      if (!this.isTeacherOrAdmin) return
+      this.editingId = photo.id
+      this.form = {
+        title: photo.eventTitle || '',
+        description: photo.description || '',
+        eventDate: photo.eventDate || ''
+      }
+      this.selectedFiles = []
+      this.showForm = true
+    },
+    async updateEvent() {
+      if (!this.editingId) return
+      if (!this.form.title) {
+        alert('Event title is required.')
+        return
+      }
+      if (!this.form.eventDate) {
+        alert('Event date is required.')
+        return
+      }
+
+      this.uploading = true
+      try {
+        const current = this.photos.find(p => p.id === this.editingId)
+        const existingUrls = current?.photoURLs || (current?.url ? [current.url] : [])
+        const newUrls = [...existingUrls]
+
+        if (this.selectedFiles.length) {
+          for (const file of this.selectedFiles) {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('upload_preset', UPLOAD_PRESET)
+            if (CLOUD_FOLDER) formData.append('folder', CLOUD_FOLDER)
+
+            const res = await fetch(
+              `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+              { method: 'POST', body: formData }
+            )
+
+            if (!res.ok) {
+              const txt = await res.text()
+              throw new Error('Cloudinary upload failed: ' + txt)
+            }
+
+            const data = await res.json()
+            newUrls.push(data.secure_url)
+          }
+        }
+
+        const docRef = doc(db, 'gallery', this.editingId)
+        const payload = {
+          eventTitle: this.form.title,
+          description: this.form.description || '',
+          eventDate: this.form.eventDate,
+          date: current?.date || new Date().toISOString(),
+          photoURLs: newUrls,
+          url: newUrls[0],
+          uploadedBy: current?.uploadedBy || this.user?.uid || 'admin',
+          storage: 'cloudinary'
+        }
+        await setDoc(docRef, payload)
+
+        this.photos = this.photos.map(p =>
+          p.id === this.editingId ? { id: this.editingId, ...payload } : p
+        )
+
+        this.resetForm()
+        this.showForm = false
+        alert('Gallery event updated')
+      } catch (e) {
+        console.error('Gallery update error', e)
+        alert('Failed to update event: ' + (e.message || e))
+      } finally {
+        this.uploading = false
+      }
+    },
+    async deleteEvent(photo) {
+      if (!this.isTeacherOrAdmin) return
+      if (!confirm('Delete this gallery event?')) return
+      try {
+        const docRef = doc(db, 'gallery', photo.id)
+        await deleteDoc(docRef)
+        this.photos = this.photos.filter(p => p.id !== photo.id)
+        alert('Gallery event deleted')
+      } catch (e) {
+        console.error('Delete error', e)
+        alert('Failed to delete event: ' + (e.message || e))
+      }
+    },
+    openDetail(photo) {
+      this.detailPhoto = {
+        ...photo,
+        url: photo.url || (photo.photoURLs && photo.photoURLs[0]) || ''
+      }
+    },
+    closeDetail() {
+      this.detailPhoto = null
+    },
     formatDate(dateStr) {
-      if (!dateStr) return "-"
+      if (!dateStr) return '-'
       const d = new Date(dateStr)
       if (isNaN(d)) return dateStr
       let day = d.getDate()
       let month = d.getMonth() + 1
       const year = d.getFullYear()
-      day = day < 10 ? "0" + day : "" + day
-      month = month < 10 ? "0" + month : "" + month
-      return `${day}/${month}/${year}`   // DD/MM/YYYY [web:417][web:421]
+      day = day < 10 ? '0' + day : '' + day
+      month = month < 10 ? '0' + month : '' + month
+      return `${day}/${month}/${year}`
     }
   },
   mounted() {
@@ -231,7 +405,7 @@ export default {
   min-height: 100vh;
   padding: 1.5rem;
   background: #f3f4f6;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #111827;
   display: flex;
   justify-content: center;
@@ -247,7 +421,6 @@ export default {
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
-/* Header */
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -267,7 +440,6 @@ export default {
   font-size: 0.82rem;
 }
 
-/* Buttons */
 .btn {
   border-radius: 999px;
   padding: 0.35rem 0.9rem;
@@ -298,7 +470,6 @@ export default {
   background: #e5e7eb;
 }
 
-/* Add event form */
 .add-event {
   border-top: 1px solid #e5e7eb;
   padding-top: 0.8rem;
@@ -365,7 +536,6 @@ export default {
   margin-top: 0.4rem;
 }
 
-/* Grid */
 .photo-grid {
   margin-top: 0.5rem;
   display: grid;
@@ -380,6 +550,7 @@ export default {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
 }
 
 .thumb {
@@ -417,13 +588,119 @@ export default {
   color: #6b7280;
 }
 
+.actions {
+  margin-top: 0.25rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.link-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 0.78rem;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.link-btn.danger {
+  color: #dc2626;
+}
+
 .empty-text {
   margin-top: 0.6rem;
   font-size: 0.85rem;
   color: #6b7280;
 }
 
-/* Responsive */
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 40;
+}
+
+.modal-dialog {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  max-width: 720px;
+  width: 95%;
+  max-height: 90vh;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.5rem;
+  border: none;
+  background: transparent;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-image {
+  background: #000;
+  max-height: 420px;
+  overflow: hidden;
+}
+
+.modal-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.modal-body {
+  padding: 0.75rem 0.9rem 0.9rem;
+}
+
+.modal-body h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.modal-date {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.modal-desc {
+  margin: 0.4rem 0 0.2rem;
+  font-size: 0.85rem;
+}
+
+.thumb-strip {
+  margin-top: 0.4rem;
+  display: flex;
+  gap: 0.3rem;
+  overflow-x: auto;
+}
+
+.thumb-strip img {
+  width: 60px;
+  height: 45px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.thumb-strip img:hover {
+  border-color: #2563eb;
+}
+
 @media (max-width: 768px) {
   .gallery-page {
     padding: 1rem;

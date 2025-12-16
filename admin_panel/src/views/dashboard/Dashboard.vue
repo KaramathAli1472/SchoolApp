@@ -7,7 +7,6 @@
         <p class="role-text">Role: {{ user.role.toUpperCase() }}</p>
       </div>
       <div>
-        <!-- Create buttons -->
         <button
           v-if="['superadmin','admin'].includes(user.role)"
           class="create-btn"
@@ -57,6 +56,30 @@
         <h2>{{ totalEvents }}</h2>
         <p>Events</p>
       </div>
+      <div class="stat-card">
+        <h2>{{ totalAchievements }}</h2>
+        <p>Achievements</p>
+      </div>
+      <div class="stat-card">
+        <h2>{{ totalClassDiary }}</h2>
+        <p>Class Diary</p>
+      </div>
+      <div class="stat-card">
+        <h2>{{ totalAnnouncements }}</h2>
+        <p>Announcements</p>
+      </div>
+      <div class="stat-card">
+        <h2>{{ totalPTMFeedback }}</h2>
+        <p>PTM Feedback</p>
+      </div>
+      <div class="stat-card">
+        <h2>{{ totalLibraryBooks }}</h2>
+        <p>Library Books</p>
+      </div>
+      <div class="stat-card">
+        <h2>{{ totalObjectiveExams }}</h2>
+        <p>Objective Exams</p>
+      </div>
     </div>
 
     <!-- Quick links row -->
@@ -66,17 +89,27 @@
       <button class="link-card" @click="$router.push('/homework')">Homework</button>
       <button class="link-card" @click="$router.push('/fees')">Fees</button>
       <button class="link-card" @click="$router.push('/results')">Results</button>
-      <button class="link-card" @click="$router.push('/notices')">Announcements</button>
+      <button class="link-card" @click="$router.push('/announcements')">Announcements</button>
       <button class="link-card" @click="$router.push('/timetable')">Time Table</button>
       <button class="link-card" @click="$router.push('/events')">Events</button>
       <button class="link-card" @click="$router.push('/gallery')">Gallery</button>
+      <button class="link-card" @click="$router.push('/achievements')">Achievements</button>
+      <button class="link-card" @click="$router.push('/class-diary')">Class Diary</button>
+      <button class="link-card" @click="$router.push('/ptm-feedback')">PTM Feedback</button>
+      <button class="link-card" @click="$router.push('/library')">Library</button>
+      <button class="link-card" @click="$router.push('/objective-exams')">Objective Exams</button>
     </div>
 
     <!-- Bar chart -->
     <div class="chart-card">
       <h3>School overview</h3>
       <div class="chart-wrapper">
-        <Bar v-if="chartData" :data="chartData" :options="chartOptions" />
+        <Bar
+          v-if="chartData"
+          :key="chartKey"
+          :data="chartData"
+          :options="chartOptions"
+        />
       </div>
     </div>
 
@@ -90,14 +123,12 @@
         <input v-model="form.email" type="email" placeholder="Email" />
         <input v-model="form.password" type="password" placeholder="Password" />
 
-        <!-- Staff role select -->
         <select v-if="createMode === 'staff'" v-model="form.role">
           <option disabled value="">Select role</option>
           <option value="admin">Admin</option>
           <option value="teacher">Teacher</option>
         </select>
 
-        <!-- Student role fixed -->
         <input
           v-else
           type="text"
@@ -105,7 +136,6 @@
           disabled
         />
 
-        <!-- ClassId for teacher / student -->
         <input
           v-if="form.role === 'teacher' || createMode === 'student'"
           v-model="form.classId"
@@ -113,7 +143,6 @@
           placeholder="Class ID (e.g. class_1)"
         />
 
-        <!-- Extra student fields (simple) -->
         <input
           v-if="createMode === 'student'"
           v-model="form.idNumber"
@@ -163,7 +192,14 @@ export default {
       totalFees: 0,
       totalTimeTables: 0,
       totalEvents: 0,
+      totalAchievements: 0,
+      totalClassDiary: 0,
+      totalAnnouncements: 0,
+      totalPTMFeedback: 0,
+      totalLibraryBooks: 0,
+      totalObjectiveExams: 0,
       chartData: null,
+      chartKey: 0,
       chartOptions: {
         responsive: true,
         maintainAspectRatio: false,
@@ -174,9 +210,8 @@ export default {
         }
       },
 
-      // create modal state
       showCreateModal: false,
-      createMode: "staff", // 'staff' | 'student'
+      createMode: "staff",
       creating: false,
       createError: "",
       createSuccess: "",
@@ -184,7 +219,7 @@ export default {
         name: "",
         email: "",
         password: "",
-        role: "",   // admin/teacher/student
+        role: "",
         classId: "",
         idNumber: "",
         branch: ""
@@ -200,7 +235,6 @@ export default {
   },
   methods: {
     async loadDashboard() {
-      console.log("Dashboard load for:", this.user.role, this.user.classId)
       const { role, uid, classId } = this.user
       let queries = []
 
@@ -212,7 +246,13 @@ export default {
           getDocs(collection(db, "attendance")),
           getDocs(collection(db, "fees")),
           getDocs(collection(db, "timetables")),
-          getDocs(collection(db, "events"))
+          getDocs(collection(db, "events")),
+          getDocs(collection(db, "achievements")),
+          getDocs(collection(db, "classDiary")),
+          getDocs(collection(db, "announcements")),
+          getDocs(collection(db, "ptmFeedback")),
+          getDocs(collection(db, "libraryBooks")),
+          getDocs(collection(db, "objectiveExams"))
         ]
       } else if (role === "teacher") {
         queries = [
@@ -222,7 +262,13 @@ export default {
           getDocs(query(collection(db, "attendance"), where("classId", "==", classId))),
           getDocs(query(collection(db, "fees"), where("classId", "==", classId))),
           getDocs(query(collection(db, "timetables"), where("classId", "==", classId))),
-          getDocs(query(collection(db, "events"), where("classId", "==", classId)))
+          getDocs(collection(db, "events")),
+          getDocs(query(collection(db, "achievements"), where("className", "==", classId))),
+          getDocs(query(collection(db, "classDiary"), where("classId", "==", classId))),
+          getDocs(collection(db, "announcements")),
+          getDocs(query(collection(db, "ptmFeedback"), where("classId", "==", classId))),
+          getDocs(collection(db, "libraryBooks")),
+          getDocs(query(collection(db, "objectiveExams"), where("classId", "==", classId)))
         ]
       } else if (role === "student") {
         queries = [
@@ -231,8 +277,14 @@ export default {
           getDocs(query(collection(db, "attendance"), where("studentId", "==", uid))),
           getDocs(query(collection(db, "fees"), where("studentId", "==", uid))),
           getDocs(query(collection(db, "timetables"), where("classId", "==", classId))),
-          getDocs(query(collection(db, "events"), where("classId", "==", classId))),
-          getDocs(query(collection(db, "users"), where("uid", "==", uid)))
+          getDocs(collection(db, "events")),
+          getDocs(query(collection(db, "users"), where("uid", "==", uid))),
+          getDocs(query(collection(db, "achievements"), where("className", "==", classId))),
+          getDocs(query(collection(db, "classDiary"), where("classId", "==", classId))),
+          getDocs(collection(db, "announcements")),
+          getDocs(query(collection(db, "ptmFeedback"), where("classId", "==", classId))),
+          getDocs(collection(db, "libraryBooks")),
+          getDocs(query(collection(db, "objectiveExams"), where("classId", "==", classId)))
         ]
       } else {
         return
@@ -246,7 +298,13 @@ export default {
           attendanceSnap,
           feesSnap,
           timetableSnap,
-          eventsSnap
+          eventsSnap,
+          achievementsSnap,
+          classDiarySnap,
+          announcementsSnap,
+          ptmFeedbackSnap,
+          libraryBooksSnap,
+          objectiveExamsSnap
         ] = await Promise.all(queries)
 
         this.totalStudents = studentsSnap.size
@@ -256,6 +314,12 @@ export default {
         this.totalFees = feesSnap.size
         this.totalTimeTables = timetableSnap.size
         this.totalEvents = eventsSnap.size
+        this.totalAchievements = achievementsSnap.size
+        this.totalClassDiary = classDiarySnap.size
+        this.totalAnnouncements = announcementsSnap.size
+        this.totalPTMFeedback = ptmFeedbackSnap.size
+        this.totalLibraryBooks = libraryBooksSnap.size
+        this.totalObjectiveExams = objectiveExamsSnap.size
 
         this.buildChart()
       } catch (err) {
@@ -264,45 +328,57 @@ export default {
     },
 
     buildChart() {
-      console.log(
-        "Build chart with:",
-        this.totalStudents,
-        this.totalTeachers,
-        this.totalResults,
-        this.totalAttendance,
-        this.totalFees,
-        this.totalTimeTables,
-        this.totalEvents
-      )
       this.chartData = {
-        labels: ["Students", "Teachers", "Results", "Attendance", "Fees", "Time Tables", "Events"],
-        datasets: [{
-          label: "Count",
-          data: [
-            this.totalStudents,
-            this.totalTeachers,
-            this.totalResults,
-            this.totalAttendance,
-            this.totalFees,
-            this.totalTimeTables,
-            this.totalEvents
-          ],
-          backgroundColor: "#1976d2",
-          hoverBackgroundColor: "#0d47a1",
-          borderRadius: 12,
-          maxBarThickness: 40
-        }]
+        labels: [
+          "Students",
+          "Teachers",
+          "Results",
+          "Attendance",
+          "Fees",
+          "Time Tables",
+          "Events",
+          "Achievements",
+          "Class Diary",
+          "Announcements",
+          "PTM Feedback",
+          "Library Books",
+          "Objective Exams"
+        ],
+        datasets: [
+          {
+            label: "Count",
+            data: [
+              this.totalStudents,
+              this.totalTeachers,
+              this.totalResults,
+              this.totalAttendance,
+              this.totalFees,
+              this.totalTimeTables,
+              this.totalEvents,
+              this.totalAchievements,
+              this.totalClassDiary,
+              this.totalAnnouncements,
+              this.totalPTMFeedback,
+              this.totalLibraryBooks,
+              this.totalObjectiveExams
+            ],
+            backgroundColor: "#1976d2",
+            hoverBackgroundColor: "#0d47a1",
+            borderRadius: 12,
+            maxBarThickness: 40
+          }
+        ]
       }
+      this.chartKey++
     },
 
     openCreateUser(mode) {
-      this.createMode = mode  // 'staff' or 'student'
+      this.createMode = mode
       this.showCreateModal = true
       this.createError = ""
       this.createSuccess = ""
 
       if (mode === "staff") {
-        // staff create default
         this.form = {
           name: "",
           email: "",
@@ -313,7 +389,6 @@ export default {
           branch: ""
         }
       } else {
-        // student create default
         this.form = {
           name: "",
           email: "",
@@ -420,12 +495,15 @@ export default {
 </script>
 
 <style scoped>
+/* same CSS as pehle; yahan change ki zaroorat nahi */
 .dashboard-container {
   padding: 1.5rem 1.8rem;
   font-family: Arial, sans-serif;
   background-color: #f5f5f5;
   min-height: 100vh;
 }
+
+/* header */
 .dashboard-header {
   display: flex;
   align-items: center;
@@ -434,7 +512,14 @@ export default {
 }
 .dashboard-header h1 { margin: 0; font-size: 2rem; }
 .role-text { margin: 0.2rem 0 0; color: #555; font-size: 0.9rem; }
-.logout-btn { background: #f44336; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 5px; cursor: pointer; }
+.logout-btn {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
 .logout-btn:hover { background: #d32f2f; }
 
 .create-btn {
@@ -448,23 +533,25 @@ export default {
 }
 .create-btn:hover { background:#0d47a1; }
 
+/* stats grid – compact */
 .dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.7rem;
   margin-bottom: 1rem;
 }
 .stat-card {
   background: #4CAF50;
   color: white;
-  padding: 1.2rem 1rem;
+  padding: 0.9rem 0.6rem;
   border-radius: 8px;
   text-align: center;
   box-shadow: 0 4px 8px rgba(0,0,0,0.12);
 }
-.stat-card h2 { margin: 0; font-size: 1.8rem; }
-.stat-card p { margin: 0.35rem 0 0; font-size: 0.9rem; }
+.stat-card h2 { margin: 0; font-size: 1.4rem; }
+.stat-card p { margin: 0.3rem 0 0; font-size: 0.8rem; }
 
+/* quick links */
 .quick-links {
   display: flex;
   flex-wrap: wrap;
@@ -488,6 +575,8 @@ export default {
   transform: translateY(-1px);
   box-shadow: 0 5px 10px rgba(0,0,0,0.22);
 }
+
+/* chart */
 .chart-card {
   margin-top: 0.5rem;
   background: #ffffff;
@@ -500,11 +589,9 @@ export default {
   font-size: 0.95rem;
   color: #333;
 }
-.chart-wrapper { width: 100%; height: 220px; }
-@media (max-width: 1100px) { .dashboard-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 800px) { .dashboard-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .chart-wrapper { height: 240px; } }
+.chart-wrapper { width: 100%; height: 260px; }
 
-/* Modal styles */
+/* modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -536,5 +623,10 @@ export default {
 }
 .error-text { color: red; font-size: 0.85rem; }
 .success-text { color: green; font-size: 0.85rem; }
+
+/* responsive tweaks */
+@media (max-width: 800px) {
+  .chart-wrapper { height: 280px; }
+}
 </style>
 

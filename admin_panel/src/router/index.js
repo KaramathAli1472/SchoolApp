@@ -7,12 +7,19 @@ import Attendance from "../views/attendance/Attendance.vue"
 import Homework from "../views/homework/Homework.vue"
 import Fees from "../views/fees/Fees.vue"
 import Results from "../views/results/Results.vue"
-import Notices from "../views/notices/Notices.vue"
 import Gallery from "../views/gallery/Gallery.vue"
 import TimeTable from "../views/timetable/TimeTable.vue"
 
-// ✅ ONLY Event Calendar
+// ✅ Event Calendar
 import EventCalendar from "../views/events/EventCalendar.vue"
+
+// ✅ Achievements & others
+import Achievements from "../views/achievements/Achievements.vue"
+import ClassDiary from "../views/classDiary/ClassDiary.vue"
+import Announcements from "../views/announcements/Announcements.vue"
+import PTMFeedback from "../views/feedback/PTMFeedback.vue"
+import LibraryBooks from "../views/library/LibraryBooks.vue"
+import ObjectiveExams from "../views/objective/ObjectiveExams.vue"
 
 const routes = [
   { path: "/", redirect: "/login" },
@@ -23,17 +30,28 @@ const routes = [
   { path: "/homework", component: Homework },
   { path: "/fees", component: Fees },
   { path: "/results", component: Results },
-  { path: "/notices", component: Notices },
   { path: "/gallery", component: Gallery },
   { path: "/timetable", component: TimeTable },
+  { path: "/class-diary", component: ClassDiary },
+
+  { path: "/ptm-feedback", component: PTMFeedback },
+  { path: "/library", component: LibraryBooks },
+  { path: "/objective-exams", component: ObjectiveExams },  // 👈 comma added
+
+  // Announcements (two paths, same component)
+  { path: "/notices", component: Announcements },
+  { path: "/announcements", component: Announcements },
 
   // ✅ Event Calendar
   { path: "/events", component: EventCalendar },
+
+  // ✅ Achievements
+  { path: "/achievements", component: Achievements }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes,
+  routes
 })
 
 export default router

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../assignments/assignments_screen.dart';
 import '../attendance/attendance_screen.dart';
+import '../event/event_calendar_screen.dart';
 import '../fees/fees_screen.dart';
+import '../objective/objective_exam_screen.dart';
 import '../timetable/timetable_screen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
@@ -53,14 +56,19 @@ class StudentDashboardScreen extends StatelessWidget {
         }
 
         final data = snapshot.data!.data()!;
-        final studentDocId = (data['id'] ?? '') as String; // OneIrvsFtylvy3oA5N2E
 
         // Firestore fields (students collection)
-        final name     = (data['name']     ?? '') as String;
-        final classId  = (data['classId']  ?? '') as String;   // e.g. class_1
-        final branch   = (data['branch']   ?? '') as String;   // city / branch
-        final idNumber = (data['idNumber'] ?? '') as String;   // roll / GR
-        final photoUrl = (data['photoUrl'] ?? '') as String;   // optional
+        final name = (data['name'] ?? '') as String;
+        final classId = (data['classId'] ?? '') as String; // e.g. class_1
+        final branch = (data['branch'] ?? '') as String; // city / branch
+        final idNumber = (data['idNumber'] ?? '') as String; // roll / GR
+        final photoUrl = (data['photoUrl'] ?? '') as String; // optional
+
+        // yahi values Assignments / Fees / Attendance ke liye use honge
+        final String studentIdForScreens =
+            data['id']?.toString() ?? ''; // student doc ka custom id field
+        final String classIdForScreens =
+            data['classId']?.toString() ?? '';
 
         return Scaffold(
           backgroundColor: const Color(0xFFFFFFFF),
@@ -70,7 +78,7 @@ class StudentDashboardScreen extends StatelessWidget {
             width: MediaQuery.of(context).size.width * 0.70,
             child: Drawer(
               child: SafeArea(
-                child: ListView(           // <-- yahan Column ki jagah ListView
+                child: ListView(
                   padding: EdgeInsets.zero,
                   children: [
                     // Top header with student info
@@ -127,18 +135,21 @@ class StudentDashboardScreen extends StatelessWidget {
                     const SizedBox(height: 10),
 
                     ListTile(
-                      leading: Icon(Icons.home, color: Color(0xFF2196F3)), // Blue color
-                      title: Text(
+                      leading: const Icon(
+                        Icons.home,
+                        color: Color(0xFF2196F3),
+                      ),
+                      title: const Text(
                         'Home',
                         style: TextStyle(
-                          fontSize: 22, // ✅ Text size bada
-                          fontWeight: FontWeight.w600, // ✅ Thick text
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       trailing: Icon(
                         Icons.arrow_forward_ios,
                         size: 18,
-                        color: Colors.grey[600], // ✅ Arrow color
+                        color: Colors.grey[600],
                       ),
                       onTap: () {
                         Navigator.pop(context);
@@ -164,11 +175,12 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        final studentId = data['id']?.toString() ?? '';
-                        final clsId = data['classId']?.toString() ?? '';
+                        final studentId = studentIdForScreens;
+                        final clsId = classIdForScreens;
 
                         if (studentId.isEmpty || clsId.isEmpty) {
-                          debugPrint('❌ Missing studentId or classId in dashboard data: $data');
+                          debugPrint(
+                              '❌ Missing studentId or classId in dashboard data: $data');
                           return;
                         }
 
@@ -204,14 +216,14 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        // yahan 'data' wo map hai jisme student ka Firestore document hai
-                        final clsId = data['classId']?.toString() ?? '';
+                        final clsId = classIdForScreens;
                         if (clsId.isEmpty) {
-                          debugPrint('❌ Timetable: classId missing in student data: $data');
+                          debugPrint(
+                              '❌ Timetable: classId missing in student data: $data');
                           return;
                         }
 
-                        Navigator.pop(context); // drawer band
+                        Navigator.pop(context);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -257,7 +269,7 @@ class StudentDashboardScreen extends StatelessWidget {
                       onTap: () {
                         Navigator.pop(context);
 
-                        final studentId = data['id']?.toString() ?? '';
+                        final studentId = studentIdForScreens;
                         if (studentId.isEmpty) {
                           debugPrint(
                             'Fee Details: student id missing in dashboard data: $data',
@@ -275,75 +287,6 @@ class StudentDashboardScreen extends StatelessWidget {
                         );
                       },
                     ),
-
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 18),
-                      child: Text(
-                        'Library',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    ListTile(
-                      leading: const Icon(
-                        Icons.menu_book,
-                        size: 26,
-                        color: Colors.blueAccent,
-                      ),
-                      title: const Text(
-                        'Library',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                          color: Colors.black,
-                        ),
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios,
-                        size: 18,
-                        color: Colors.grey,
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
-                    ),
-
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 18),
-                      child: Text(
-                        'Acedemic',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    ListTile(
-                      leading: const Icon(
-                        Icons.assignment,
-                        size: 26,
-                        color: Colors.purple,
-                      ),
-                      title: const Text(
-                        'Objective Exams',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                          color: Colors.black,
-                        ),
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios,
-                        size: 18,
-                        color: Colors.grey,
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
-                    ),
-
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 18),
                       child: Text(
@@ -354,6 +297,7 @@ class StudentDashboardScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+
                     ListTile(
                       leading: const Icon(
                         Icons.assignment,
@@ -374,14 +318,37 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
+                        final clsId = classIdForScreens;
+                        final sid = studentIdForScreens;
+
+                        debugPrint(
+                          '📚 Assignments tap => classId: $clsId, studentId: $sid',
+                        );
+
+                        if (clsId.isEmpty || sid.isEmpty) {
+                          debugPrint(
+                            '❌ Assignments: classId or studentId missing in dashboard data: $data',
+                          );
+                          return;
+                        }
+
                         Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AssignmentsScreen(
+                              classId: clsId,
+                              studentId: sid,
+                            ),
+                          ),
+                        );
                       },
                     ),
                     ListTile(
                       leading: const Icon(
-                        Icons.calendar_today,
+                        Icons.assignment,
                         size: 26,
-                        color: Colors.red,
+                        color: Colors.purple,
                       ),
                       title: const Text(
                         'Event Calendar',
@@ -397,7 +364,12 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const EventCalendarScreen(),
+                          ),
+                        );
                       },
                     ),
                     ListTile(
@@ -518,6 +490,79 @@ class StudentDashboardScreen extends StatelessWidget {
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 18),
                       child: Text(
+                        'Library',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.menu_book,
+                        size: 26,
+                        color: Colors.blueAccent,
+                      ),
+                      title: const Text(
+                        'Library',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          color: Colors.black,
+                        ),
+                      ),
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 18),
+                      child: Text(
+                        'Acedemic',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.assignment,
+                        size: 26,
+                        color: Colors.purple,
+                      ),
+                      title: const Text(
+                        'Objective Exams',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          color: Colors.black,
+                        ),
+                      ),
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ObjectiveExamScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 18),
+                      child: Text(
                         'Concerns',
                         style: TextStyle(
                           fontSize: 22,
@@ -529,15 +574,15 @@ class StudentDashboardScreen extends StatelessWidget {
                     ListTile(
                       leading: const Icon(
                         Icons.report_problem,
-                        size: 26,                 // icon size
-                        color: Colors.deepOrange,      // icon colour
+                        size: 26,
+                        color: Colors.deepOrange,
                       ),
                       title: const Text(
                         'Parent Concern Form',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 20,           // text size (16 ya 18 jo pasand ho)
-                          color: Colors.black,    // text colour
+                          fontSize: 20,
+                          color: Colors.black,
                         ),
                       ),
                       trailing: const Icon(
@@ -547,7 +592,6 @@ class StudentDashboardScreen extends StatelessWidget {
                       ),
                       onTap: () {
                         Navigator.pop(context);
-                        // TODO: Parent Concern Form
                       },
                     ),
                     const Padding(
@@ -564,15 +608,15 @@ class StudentDashboardScreen extends StatelessWidget {
                     ListTile(
                       leading: const Icon(
                         Icons.qr_code,
-                        size: 26,                 // icon size
-                        color: Colors.deepOrange,      // icon colour
+                        size: 26,
+                        color: Colors.deepOrange,
                       ),
                       title: const Text(
                         'Gate Pass',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 20,           // text size (16 ya 18 jo pasand ho)
-                          color: Colors.black,    // text colour
+                          fontSize: 20,
+                          color: Colors.black,
                         ),
                       ),
                       trailing: const Icon(
@@ -582,7 +626,6 @@ class StudentDashboardScreen extends StatelessWidget {
                       ),
                       onTap: () {
                         Navigator.pop(context);
-                        // TODO: Gate Pass Form
                       },
                     ),
                     const Padding(
@@ -599,15 +642,15 @@ class StudentDashboardScreen extends StatelessWidget {
                     ListTile(
                       leading: const Icon(
                         Icons.settings,
-                        size: 26,                 // icon size
-                        color: Colors.blueGrey,      // icon colour
+                        size: 26,
+                        color: Colors.blueGrey,
                       ),
                       title: const Text(
                         'Settings',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 20,           // text size (16 ya 18 jo pasand ho)
-                          color: Colors.black,    // text colour
+                          fontSize: 20,
+                          color: Colors.black,
                         ),
                       ),
                       trailing: const Icon(
@@ -617,21 +660,20 @@ class StudentDashboardScreen extends StatelessWidget {
                       ),
                       onTap: () {
                         Navigator.pop(context);
-                        // TODO: Settings Form
                       },
                     ),
                     ListTile(
                       leading: const Icon(
                         Icons.logout,
-                        size: 26,                 // icon size
-                        color: Colors.red,      // icon colour
+                        size: 26,
+                        color: Colors.red,
                       ),
                       title: const Text(
                         'Logout',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 20,           // text size (16 ya 18 jo pasand ho)
-                          color: Colors.black,    // text colour
+                          fontSize: 20,
+                          color: Colors.black,
                         ),
                       ),
                       trailing: const Icon(
@@ -661,7 +703,6 @@ class StudentDashboardScreen extends StatelessWidget {
             ),
           ),
 
-          // APP BAR WITH MENU BUTTON
           appBar: AppBar(
             backgroundColor: const Color(0xFF6079EA),
             elevation: 0,
@@ -680,12 +721,10 @@ class StudentDashboardScreen extends StatelessWidget {
             iconTheme: const IconThemeData(color: Colors.indigoAccent),
           ),
 
-          // BODY
           body: Column(
             children: [
               const SizedBox(height: 32),
 
-              // School logo circle
               Container(
                 width: 180,
                 height: 180,
@@ -718,7 +757,6 @@ class StudentDashboardScreen extends StatelessWidget {
 
               const SizedBox(height: 32),
 
-              // Student card
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(

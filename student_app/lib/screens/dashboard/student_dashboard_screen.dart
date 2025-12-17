@@ -7,16 +7,35 @@ import '../announcements/announcements_screen.dart';
 import '../assignments/assignments_screen.dart';
 import '../attendance/attendance_screen.dart';
 import '../class_diary/ClassDiary.dart';
+import '../concern/parent_concern_form_screen.dart';
 import '../event/event_calendar_screen.dart';
 import '../fees/fees_screen.dart';
 import '../gallery/gallery_screen.dart';
+import '../gatepass/gate_pass_form_screen.dart';
 import '../library/library_screen.dart';
 import '../objective/objective_exam_screen.dart';
 import '../ptm/ptm_feedback_screen.dart';
+import '../settings/settings_screen.dart';
 import '../timetable/timetable_screen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
+
+  Future<void> _logout(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.signOut();
+
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/login',
+            (route) => false,
+      );
+    } catch (e) {
+      debugPrint('❌ Logout error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to logout, please try again')),
+      );
+    }
+  }
 
   Future<DocumentSnapshot<Map<String, dynamic>>> _loadStudent() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
@@ -61,9 +80,13 @@ class StudentDashboardScreen extends StatelessWidget {
           );
         }
 
-        final data = snapshot.data!.data()!;
+        final docSnap = snapshot.data!;
+        final data = docSnap.data()!;
 
-        // Firestore fields (students collection)
+// yahan uid nikal lo
+        final String uid = FirebaseAuth.instance.currentUser!.uid;
+
+// Firestore fields (students collection)
         final name = (data['name'] ?? '') as String;
         final classId = (data['classId'] ?? '') as String; // e.g. class_1
         final branch = (data['branch'] ?? '') as String; // city / branch
@@ -143,7 +166,7 @@ class StudentDashboardScreen extends StatelessWidget {
                     ListTile(
                       leading: const Icon(
                         Icons.home,
-                        color: Color(0xFF2196F3),
+                        color: Color(0xFF91A0F6),
                       ),
                       title: const Text(
                         'Home',
@@ -642,12 +665,12 @@ class StudentDashboardScreen extends StatelessWidget {
 
                     ListTile(
                       leading: const Icon(
-                        Icons.report_problem,
+                        Icons.support_agent,
                         size: 26,
                         color: Colors.deepOrange,
                       ),
                       title: const Text(
-                        'Parent Concern Form',
+                        'Parent Concern',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 20,
@@ -660,7 +683,26 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        Navigator.pop(context);
+                        final clsId = classIdForScreens;
+                        final roll = idNumber;
+
+                        if (clsId.isEmpty) {
+                          debugPrint(
+                              '❌ Parent Concern: classId missing in student data: $data');
+                          return;
+                        }
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ParentConcernFormScreen(
+                              studentUid: uid,
+                              studentName: name,
+                              classId: clsId,
+                              idNumber: roll,
+                            ),
+                          ),
+                        );
                       },
                     ),
                     const Padding(
@@ -694,7 +736,25 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        Navigator.pop(context);
+                        final clsId = classIdForScreens;
+                        final roll = idNumber;
+
+                        if (clsId.isEmpty) {
+                          debugPrint('❌ Gate Pass: classId missing in student data: $data');
+                          return;
+                        }
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => GatePassFormScreen(
+                              studentUid: uid,
+                              studentName: name,
+                              classId: clsId,
+                              idNumber: roll,
+                            ),
+                          ),
+                        );
                       },
                     ),
                     const Padding(
@@ -728,7 +788,18 @@ class StudentDashboardScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.pop(context); // drawer close
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SettingsScreen(
+                              studentName: name,
+                              classId: classId,
+                              idNumber: idNumber,
+                              branch: branch,
+                            ),
+                          ),
+                        );
                       },
                     ),
                     ListTile(
@@ -750,9 +821,9 @@ class StudentDashboardScreen extends StatelessWidget {
                         size: 18,
                         color: Colors.grey,
                       ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        // TODO: Logout
+                      onTap: () async {
+                        Navigator.pop(context);          // drawer close
+                        await _logout(context);          // 👈 yahan call
                       },
                     ),
                     const SizedBox(height: 16),

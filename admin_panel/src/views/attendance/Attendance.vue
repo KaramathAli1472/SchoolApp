@@ -174,7 +174,8 @@ export default {
   },
   computed: {
     canEditAttendance() {
-      return ["teacher", "admin", "superadmin"].includes(this.user.role)
+      const role = (this.user.role || "").toString().toLowerCase()
+      return ["teacher", "admin", "superadmin"].includes(role)
     },
     filteredAttendance() {
       const text = this.searchText.trim().toLowerCase()
@@ -195,6 +196,7 @@ export default {
     }
   },
   async mounted() {
+    console.log("ATT USER =>", this.user)
     if (!this.user || !this.user.role) {
       alert("Please login first")
       this.$router.push("/login")
@@ -210,12 +212,11 @@ export default {
         return
       }
       this.activeDate = this.selectedDate
-      this.fetchAttendance()   // date change pe fresh load
+      this.fetchAttendance()
     },
 
     async fetchAttendance() {
       try {
-        // 1) Students list (role + class filter same as pehle)
         const studentsRef = collection(db, "students")
         let q = studentsRef
 
@@ -237,6 +238,7 @@ export default {
             q = studentsRef
           }
         } else if (this.user.role === "teacher") {
+          // Teacher: apni class ya dropdown se selected class
           if (this.selectedClass) {
             q = query(studentsRef, where("classId", "==", this.selectedClass))
           } else if (this.user.classId) {
@@ -250,25 +252,16 @@ export default {
         console.log("👀 Students fetched:", snap.size)
         this.students = snap.docs.map(d => ({ id: d.id, ...d.data() }))
 
-        // 2) Attendance: date-wise doc
         if (!this.activeDate) {
           this.allAttendanceRecords = []
           this.prepareAttendance()
           return
         }
 
-        const docId = this.activeDate           // e.g. "2025-12-15"
+        const docId = this.activeDate
         const dateRef = doc(db, "attendance", docId)
         const docSnap = await getDoc(dateRef)
         const attendanceData = docSnap.exists() ? docSnap.data() : {}
-
-        // Expected structure:
-        // {
-        //   "class_2": {
-        //      "studentId": { name, idNumber, classId, photoUrl, status }
-        //   },
-        //   "class_3": { ... }
-        // }
 
         const records = []
 
@@ -276,7 +269,6 @@ export default {
           const classBlock = attendanceData[cid]
           if (!classBlock || typeof classBlock !== "object") continue
 
-          // Agar UI me class filter laga ho, to yahin filter kar sakte ho
           if (this.selectedClass && cid !== this.selectedClass) continue
 
           for (const studentId in classBlock) {
@@ -390,10 +382,9 @@ export default {
         return
       }
       try {
-        const docId = this.activeDate        // date-wise document
+        const docId = this.activeDate
         const dateRef = doc(db, "attendance", docId)
 
-        // Build payload: { classId: { studentId: {...} } }
         const attendancePayload = {}
 
         this.allAttendanceRecords.forEach(s => {
@@ -413,11 +404,7 @@ export default {
           }
         })
 
-        await setDoc(
-          dateRef,
-          attendancePayload,
-          { merge: true }
-        )
+        await setDoc(dateRef, attendancePayload, { merge: true })
 
         alert("Attendance saved successfully!")
         await this.fetchAttendance()

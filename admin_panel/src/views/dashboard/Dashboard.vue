@@ -80,6 +80,14 @@
         <h2>{{ totalObjectiveExams }}</h2>
         <p>Objective Exams</p>
       </div>
+      <div class="stat-card">
+        <h2>{{ totalParentConcerns }}</h2>
+        <p>Parent Concerns</p>
+      </div>
+      <div class="stat-card">
+        <h2>{{ totalGatePassRequests }}</h2>
+        <p>Gate Pass</p>
+      </div>
     </div>
 
     <!-- Quick links row -->
@@ -98,6 +106,9 @@
       <button class="link-card" @click="$router.push('/ptm-feedback')">PTM Feedback</button>
       <button class="link-card" @click="$router.push('/library')">Library</button>
       <button class="link-card" @click="$router.push('/objective-exams')">Objective Exams</button>
+      <button class="link-card" @click="$router.push('/parent-concerns')">Parent Concerns</button>
+      <button class="link-card" @click="$router.push('/gate-pass')">Gate Pass</button>
+      <button class="link-card" @click="$router.push('/settings')">Settings</button>
     </div>
 
     <!-- Bar chart -->
@@ -129,12 +140,7 @@
           <option value="teacher">Teacher</option>
         </select>
 
-        <input
-          v-else
-          type="text"
-          value="student"
-          disabled
-        />
+        <input v-else type="text" value="student" disabled />
 
         <input
           v-if="form.role === 'teacher' || createMode === 'student'"
@@ -198,6 +204,8 @@ export default {
       totalPTMFeedback: 0,
       totalLibraryBooks: 0,
       totalObjectiveExams: 0,
+      totalParentConcerns: 0,
+      totalGatePassRequests: 0,
       chartData: null,
       chartKey: 0,
       chartOptions: {
@@ -246,13 +254,15 @@ export default {
           getDocs(collection(db, "attendance")),
           getDocs(collection(db, "fees")),
           getDocs(collection(db, "timetables")),
-          getDocs(collection(db, "events")),
+          getDocs(collection(db, "schoolEvents")),   // ✅ schoolEvents
           getDocs(collection(db, "achievements")),
           getDocs(collection(db, "classDiary")),
           getDocs(collection(db, "announcements")),
           getDocs(collection(db, "ptmFeedback")),
           getDocs(collection(db, "libraryBooks")),
-          getDocs(collection(db, "objectiveExams"))
+          getDocs(collection(db, "objectiveExams")),
+          getDocs(collection(db, "parentConcerns")),
+          getDocs(collection(db, "gatePassRequests"))
         ]
       } else if (role === "teacher") {
         queries = [
@@ -262,13 +272,15 @@ export default {
           getDocs(query(collection(db, "attendance"), where("classId", "==", classId))),
           getDocs(query(collection(db, "fees"), where("classId", "==", classId))),
           getDocs(query(collection(db, "timetables"), where("classId", "==", classId))),
-          getDocs(collection(db, "events")),
+          getDocs(collection(db, "schoolEvents")),   // ✅ schoolEvents
           getDocs(query(collection(db, "achievements"), where("className", "==", classId))),
           getDocs(query(collection(db, "classDiary"), where("classId", "==", classId))),
           getDocs(collection(db, "announcements")),
           getDocs(query(collection(db, "ptmFeedback"), where("classId", "==", classId))),
           getDocs(collection(db, "libraryBooks")),
-          getDocs(query(collection(db, "objectiveExams"), where("classId", "==", classId)))
+          getDocs(query(collection(db, "objectiveExams"), where("classId", "==", classId))),
+          getDocs(query(collection(db, "parentConcerns"), where("classId", "==", classId))),
+          getDocs(query(collection(db, "gatePassRequests"), where("classId", "==", classId)))
         ]
       } else if (role === "student") {
         queries = [
@@ -277,14 +289,16 @@ export default {
           getDocs(query(collection(db, "attendance"), where("studentId", "==", uid))),
           getDocs(query(collection(db, "fees"), where("studentId", "==", uid))),
           getDocs(query(collection(db, "timetables"), where("classId", "==", classId))),
-          getDocs(collection(db, "events")),
+          getDocs(collection(db, "schoolEvents")),   // ✅ schoolEvents
           getDocs(query(collection(db, "users"), where("uid", "==", uid))),
           getDocs(query(collection(db, "achievements"), where("className", "==", classId))),
           getDocs(query(collection(db, "classDiary"), where("classId", "==", classId))),
           getDocs(collection(db, "announcements")),
           getDocs(query(collection(db, "ptmFeedback"), where("classId", "==", classId))),
           getDocs(collection(db, "libraryBooks")),
-          getDocs(query(collection(db, "objectiveExams"), where("classId", "==", classId)))
+          getDocs(query(collection(db, "objectiveExams"), where("classId", "==", classId))),
+          getDocs(query(collection(db, "parentConcerns"), where("classId", "==", classId))),
+          getDocs(query(collection(db, "gatePassRequests"), where("classId", "==", classId)))
         ]
       } else {
         return
@@ -304,8 +318,17 @@ export default {
           announcementsSnap,
           ptmFeedbackSnap,
           libraryBooksSnap,
-          objectiveExamsSnap
+          objectiveExamsSnap,
+          parentConcernsSnap,
+          gatePassSnap
         ] = await Promise.all(queries)
+
+        console.log(
+          "Counts => events:",
+          eventsSnap.size,
+          "| announcements:",
+          announcementsSnap.size
+        )
 
         this.totalStudents = studentsSnap.size
         this.totalTeachers = teachersSnap.size
@@ -313,13 +336,15 @@ export default {
         this.totalAttendance = attendanceSnap.size
         this.totalFees = feesSnap.size
         this.totalTimeTables = timetableSnap.size
-        this.totalEvents = eventsSnap.size
+        this.totalEvents = eventsSnap.size               // ✅ graph source
         this.totalAchievements = achievementsSnap.size
         this.totalClassDiary = classDiarySnap.size
         this.totalAnnouncements = announcementsSnap.size
         this.totalPTMFeedback = ptmFeedbackSnap.size
         this.totalLibraryBooks = libraryBooksSnap.size
         this.totalObjectiveExams = objectiveExamsSnap.size
+        this.totalParentConcerns = parentConcernsSnap.size
+        this.totalGatePassRequests = gatePassSnap.size
 
         this.buildChart()
       } catch (err) {
@@ -342,7 +367,9 @@ export default {
           "Announcements",
           "PTM Feedback",
           "Library Books",
-          "Objective Exams"
+          "Objective Exams",
+          "Parent Concerns",
+          "Gate Pass"
         ],
         datasets: [
           {
@@ -360,7 +387,9 @@ export default {
               this.totalAnnouncements,
               this.totalPTMFeedback,
               this.totalLibraryBooks,
-              this.totalObjectiveExams
+              this.totalObjectiveExams,
+              this.totalParentConcerns,
+              this.totalGatePassRequests
             ],
             backgroundColor: "#1976d2",
             hoverBackgroundColor: "#0d47a1",
@@ -495,15 +524,13 @@ export default {
 </script>
 
 <style scoped>
-/* same CSS as pehle; yahan change ki zaroorat nahi */
+/* tumhara existing CSS same rakha hai */
 .dashboard-container {
   padding: 1.5rem 1.8rem;
   font-family: Arial, sans-serif;
   background-color: #f5f5f5;
   min-height: 100vh;
 }
-
-/* header */
 .dashboard-header {
   display: flex;
   align-items: center;
@@ -521,7 +548,6 @@ export default {
   cursor: pointer;
 }
 .logout-btn:hover { background: #d32f2f; }
-
 .create-btn {
   margin-right: 0.5rem;
   background: #1976d2;
@@ -532,8 +558,6 @@ export default {
   cursor: pointer;
 }
 .create-btn:hover { background:#0d47a1; }
-
-/* stats grid – compact */
 .dashboard-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -550,8 +574,6 @@ export default {
 }
 .stat-card h2 { margin: 0; font-size: 1.4rem; }
 .stat-card p { margin: 0.3rem 0 0; font-size: 0.8rem; }
-
-/* quick links */
 .quick-links {
   display: flex;
   flex-wrap: wrap;
@@ -575,8 +597,6 @@ export default {
   transform: translateY(-1px);
   box-shadow: 0 5px 10px rgba(0,0,0,0.22);
 }
-
-/* chart */
 .chart-card {
   margin-top: 0.5rem;
   background: #ffffff;
@@ -590,8 +610,6 @@ export default {
   color: #333;
 }
 .chart-wrapper { width: 100%; height: 260px; }
-
-/* modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -623,8 +641,6 @@ export default {
 }
 .error-text { color: red; font-size: 0.85rem; }
 .success-text { color: green; font-size: 0.85rem; }
-
-/* responsive tweaks */
 @media (max-width: 800px) {
   .chart-wrapper { height: 280px; }
 }

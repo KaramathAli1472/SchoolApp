@@ -20,6 +20,11 @@ import Announcements from "../views/announcements/Announcements.vue"
 import PTMFeedback from "../views/feedback/PTMFeedback.vue"
 import LibraryBooks from "../views/library/LibraryBooks.vue"
 import ObjectiveExams from "../views/objective/ObjectiveExams.vue"
+import ParentConcerns from "../views/concerns/ParentConcerns.vue"
+import GatePassRequests from "../views/gatepass/GatePassRequests.vue"
+
+// ✅ Settings (NEW)
+import Settings from "../views/settings/Settings.vue"
 
 const routes = [
   { path: "/", redirect: "/login" },
@@ -36,7 +41,7 @@ const routes = [
 
   { path: "/ptm-feedback", component: PTMFeedback },
   { path: "/library", component: LibraryBooks },
-  { path: "/objective-exams", component: ObjectiveExams },  // 👈 comma added
+  { path: "/objective-exams", component: ObjectiveExams },
 
   // Announcements (two paths, same component)
   { path: "/notices", component: Announcements },
@@ -46,7 +51,16 @@ const routes = [
   { path: "/events", component: EventCalendar },
 
   // ✅ Achievements
-  { path: "/achievements", component: Achievements }
+  { path: "/achievements", component: Achievements },
+
+  // ✅ Parent Concerns
+  { path: "/parent-concerns", component: ParentConcerns },
+
+  // ✅ Gate Pass Requests
+  { path: "/gate-pass", component: GatePassRequests },
+
+  // ✅ Settings route
+  { path: "/settings", component: Settings }
 ]
 
 const router = createRouter({

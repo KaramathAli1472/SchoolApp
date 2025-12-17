@@ -222,28 +222,29 @@ export default {
   methods: {
     async fetchDiary() {
       try {
-        let q = query(
-          collection(db, 'classDiary'),
-          orderBy('date', 'desc'),
-          orderBy('createdAt', 'desc')
-        )
+        const baseCol = collection(db, 'classDiary')
 
-        // teacher: default apni class
-        const classFilter = this.filters.classId || this.user.classId || ''
+        // Filter sirf UI se aayega
+        const classFilter = this.filters.classId
         const dateFilter = this.filters.date
 
+        let q
         if (classFilter) {
+          // where + single orderBy => composite index nahi chahiye
           q = query(
-            collection(db, 'classDiary'),
+            baseCol,
             where('classId', '==', classFilter),
-            orderBy('date', 'desc'),
-            orderBy('createdAt', 'desc')
+            orderBy('date', 'desc')
           )
+        } else {
+          // saare diary entries date ke hisab se
+          q = query(baseCol, orderBy('date', 'desc'))
         }
 
         const snap = await getDocs(q)
         let data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
 
+        // date string filter client-side
         if (dateFilter) {
           data = data.filter(item => item.date === dateFilter)
         }
@@ -410,10 +411,7 @@ export default {
     }
   },
   mounted() {
-    // default teacher ke classId se filter karega
-    if (this.user.role === 'teacher' && this.user.classId) {
-      this.filters.classId = this.user.classId
-    }
+    // default: koi filter nahi, sab diary load
     this.fetchDiary()
     this.resetForm()
   }
@@ -421,6 +419,7 @@ export default {
 </script>
 
 <style scoped>
+/* tumhara CSS jaisa already hai, same rakha hai */
 .class-diary-page {
   min-height: 100vh;
   padding: 1.5rem;
@@ -678,4 +677,3 @@ export default {
   }
 }
 </style>
-
